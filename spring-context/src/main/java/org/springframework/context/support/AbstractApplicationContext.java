@@ -519,7 +519,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			 * 刷新前的准备工作：
 			 * 1、设置启动日期
 			 * 2、激活flag，如closed=false，active=true
-			 * 3、初始化PropertySources并校验必须参数（通过ConfigurablePropertyResolver#setRequiredProperties设置）
+			 * 3、初始化PropertySources(处理配置文件中的占位符)并校验必须参数（通过ConfigurablePropertyResolver#setRequiredProperties设置）
 			 */
 			prepareRefresh();
 
@@ -617,7 +617,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				 * 2、实现InitializingBean接口
 				 * 3、使用@PostConstruct
 				 *
-				 * 这里我们可以利用这个事件实现第4中方式
+				 * 这里我们可以利用这个事件实现第4种方式
 				 * 比如实现ApplicationListener接口，当监听到ContextRefreshedEvent事件时，方法onApplicationEvent（event）
 				 * 将被调用，然后做一些初始化工作！
 				 */
@@ -664,7 +664,9 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	protected void prepareRefresh() {
 		// Switch to active.
 		this.startupDate = System.currentTimeMillis();
+		//设置容器开启
 		this.closed.set(false);
+		//设置容器已激活，如果容器初始化异常会重置active为false，表示未激活，下次可以重新refresh
 		this.active.set(true);
 
 		if (logger.isDebugEnabled()) {
@@ -677,13 +679,16 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Initialize any placeholder property sources in the context environment.
+		//模板方法，初始化PropertySource处理配置文件中的占位符
 		initPropertySources();
 
 		// Validate that all properties marked as required are resolvable:
 		// see ConfigurablePropertyResolver#setRequiredProperties
+		//校验设置为required的参数，在ConfigurablePropertyResolver#setRequiredProperties中设置
 		getEnvironment().validateRequiredProperties();
 
 		// Store pre-refresh ApplicationListeners...
+		//初始化earlyApplicationListeners存储预刷新的ApplicationListener
 		if (this.earlyApplicationListeners == null) {
 			this.earlyApplicationListeners = new LinkedHashSet<>(this.applicationListeners);
 		}
@@ -695,6 +700,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Allow for the collection of early ApplicationEvents,
 		// to be published once the multicaster is available...
+		//初始化earlyApplicationEvents存储早期ApplicationEvent，一旦multicaster可用便会发布这些事件
 		this.earlyApplicationEvents = new LinkedHashSet<>();
 	}
 
@@ -828,6 +834,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * will have been instantiated yet. This allows for registering special
 	 * BeanPostProcessors etc in certain ApplicationContext implementations.
 	 * @param beanFactory the bean factory used by the application context
+	 */
+	/**
+	 * 在ConfigurableListableBeanFactory初始化完成后做一些改动（此时所有definition都已注册但尚未实例化）。
+	 * 我们可以在自定义ApplicationContext实现类中重写这个方法并添加一些特殊的BeanPostProcessor
+	 * @param beanFactory
 	 */
 	protected void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 	}
@@ -990,9 +1001,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
 		// Initialize conversion service for this context.
+		/**
+		 * Spring 3.0添加的属性转换服务，作为JavaBeans PropertyEditors的替代方案
+		 * 用于某些bean属性进行转换是使用，比较重要的一个点
+		 */
 		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
 				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
 			beanFactory.setConversionService(
+					//调用getBean提前初始化
 					beanFactory.getBean(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class));
 		}
 
@@ -1010,12 +1026,15 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Stop using the temporary ClassLoader for type matching.
+		//停止使用临时类加载器
 		beanFactory.setTempClassLoader(null);
 
 		// Allow for caching all bean definition metadata, not expecting further changes.
+		//因为下一步就要与初始化所有非懒加载单例bean了，在这里冻结配置信息，即将所有definition元数据缓存起来，以避免被修改或者有任何后处理操作
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		//实例化所有剩余的非懒加载单例bean
 		beanFactory.preInstantiateSingletons();
 	}
 

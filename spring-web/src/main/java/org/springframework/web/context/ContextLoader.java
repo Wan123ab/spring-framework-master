@@ -257,6 +257,17 @@ public class ContextLoader {
 	 * @see #CONTEXT_CLASS_PARAM
 	 * @see #CONFIG_LOCATION_PARAM
 	 */
+	/**
+	 * 1、初始化之前检查当前ServletContext是否已经存在Spring容器；
+	 * 2、使用无参构造（Java类）或者主要构造（Kotlin类）实例化1个ConfigurableWebApplicationContext实现类，默认是XMLWebApplicationContext；
+	 * 3、为已经实例化的ConfigurableWebApplicationContext设置父容器，通常为null，除非自定义子类复写loadParentContext。
+	 * 4、配置并刷新ConfigurableWebApplicationContext（重点）；
+	 * 5、以WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE为key存储在当前ServletContext中；
+	 * 6、将ConfigurableWebApplicationContext存储在当前ContextLoader内部。
+	 *
+	 * @param servletContext
+	 * @return
+	 */
 	public WebApplicationContext initWebApplicationContext(ServletContext servletContext) {
 		/**
 		 * 检查servletContext中是否已经存放有1个root application，如果有，那么抛出IllegalStateException。

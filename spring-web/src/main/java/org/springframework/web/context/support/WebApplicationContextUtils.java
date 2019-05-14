@@ -78,6 +78,17 @@ public abstract class WebApplicationContextUtils {
 	 * @throws IllegalStateException if the root WebApplicationContext could not be found
 	 * @see org.springframework.web.context.WebApplicationContext#ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE
 	 */
+	/**
+	 * 根据参数sc指定的ServletContext,找到当前web应用的根WebApplicationContext，该根WebApplicationContext
+	 * 典型情况下由加载org.springframework.web.context.ContextLoaderListener,
+	 * 并记录为ServletContext的属性，属性名称使用
+	 * WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE
+	 *
+	 * 如果根上下文(root context)启动过程中有异常发生，这里会把该异常重新抛出；如果根本找不到根上下文，
+	 * 抛出另外一个异常IllegalStateException，带如下错误信息 :
+	 * No WebApplicationContext found: no ContextLoaderListener registered?
+	 *
+	 */
 	public static WebApplicationContext getRequiredWebApplicationContext(ServletContext sc) throws IllegalStateException {
 		WebApplicationContext wac = getWebApplicationContext(sc);
 		if (wac == null) {
@@ -95,6 +106,15 @@ public abstract class WebApplicationContextUtils {
 	 * @return the root WebApplicationContext for this web app, or {@code null} if none
 	 * @see org.springframework.web.context.WebApplicationContext#ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE
 	 */
+	/**
+	 * 根据参数sc指定的ServletContext,找到当前web应用的根WebApplicationContext，该根WebApplicationContext
+	 * 典型情况下由加载org.springframework.web.context.ContextLoaderListener,
+	 * 并记录为ServletContext的属性，属性名称使用
+	 * WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE
+	 *
+	 * 如果根上下文(root context)启动过程中有异常发生，这里会把该异常重新抛出；如果根本找不到根上下文，
+	 * 返回null，注意，这一点是该方法和方法getRequiredWebApplicationContext不同的地方
+	 */
 	@Nullable
 	public static WebApplicationContext getWebApplicationContext(ServletContext sc) {
 		return getWebApplicationContext(sc, WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
@@ -105,6 +125,11 @@ public abstract class WebApplicationContextUtils {
 	 * @param sc the ServletContext to find the web application context for
 	 * @param attrName the name of the ServletContext attribute to look for
 	 * @return the desired WebApplicationContext for this web app, or {@code null} if none
+	 */
+	/**
+	 * 根据指定的名称找到ServletContext的某个WebApplicationContext，
+	 * 这些WebApplicationContext会在容器启动过程中添加为ServletContext实例特定名字的属性对象，
+	 * 如果这些WebApplicationContext在容器准备他们的过程中遇到了异常，相应的属性对象记录的是相应的异常
 	 */
 	@Nullable
 	public static WebApplicationContext getWebApplicationContext(ServletContext sc, String attrName) {
@@ -143,6 +168,12 @@ public abstract class WebApplicationContextUtils {
 	 * @see #getWebApplicationContext(ServletContext)
 	 * @see ServletContext#getAttributeNames()
 	 */
+	/**
+	 * 找到当前Web应用唯一的那个WebApplicationContext：或者是缺省根web应用上下文(期望的情况),
+	 * 或者是注册的ServletContext属性中唯一的那个WebApplicationContext(典型情况下，来自当前
+	 * web应用中的DispatcherServlet)。如果发现注册的ServletContext属性中有多个WebApplicationContext,
+	 * 会抛出异常声明发现了多个WebApplicationContext。
+	 */
 	@Nullable
 	public static WebApplicationContext findWebApplicationContext(ServletContext sc) {
 		WebApplicationContext wac = getWebApplicationContext(sc);
@@ -179,9 +210,13 @@ public abstract class WebApplicationContextUtils {
 	 * @param beanFactory the BeanFactory to configure
 	 * @param sc the ServletContext that we're running within
 	 */
+	/**
+	 * 向WebApplicationContext使用的BeanFactory注册web有关作用域对象 :
+	 * request, session, globalSession, application
+	 */
 	public static void registerWebApplicationScopes(ConfigurableListableBeanFactory beanFactory,
 			@Nullable ServletContext sc) {
-
+		// 注册web相关作用域bean
 		beanFactory.registerScope(WebApplicationContext.SCOPE_REQUEST, new RequestScope());
 		beanFactory.registerScope(WebApplicationContext.SCOPE_SESSION, new SessionScope());
 		if (sc != null) {
@@ -191,9 +226,13 @@ public abstract class WebApplicationContextUtils {
 			sc.setAttribute(ServletContextScope.class.getName(), appScope);
 		}
 
+		// 注册ServletRequest的工厂bean，当开发人员依赖注入ServletRequest对象时，注入的bean其实是这里的RequestObjectFactory工厂bean
 		beanFactory.registerResolvableDependency(ServletRequest.class, new RequestObjectFactory());
+		// 注册ServletResponse的工厂bean，当开发人员依赖注入ServletResponse对象时，注入的bean其实是这里的ResponseObjectFactory工厂bean
 		beanFactory.registerResolvableDependency(ServletResponse.class, new ResponseObjectFactory());
+		// 注册HttpSession的工厂bean，当开发人员依赖注入HttpSession对象时，注入的bean其实是这里的SessionObjectFactory工厂bean
 		beanFactory.registerResolvableDependency(HttpSession.class, new SessionObjectFactory());
+		// 注册WebRequest的工厂bean，当开发人员依赖注入WebRequest对象时，注入的bean其实是这里的WebRequestObjectFactory工厂bean
 		beanFactory.registerResolvableDependency(WebRequest.class, new WebRequestObjectFactory());
 		if (jsfPresent) {
 			FacesDependencyRegistrar.registerFacesDependencies(beanFactory);
@@ -306,6 +345,13 @@ public abstract class WebApplicationContextUtils {
 
 	/**
 	 * Return the current RequestAttributes instance as ServletRequestAttributes.
+	 *
+	 * 获取当前RequestAttributes实例，返回类型为ServletRequestAttributes，
+	 * 该方法使用RequestContextHolder获取和当前请求处理线程绑定的ServletRequestAttributes对象，
+	 * 进而可以获取其中的HttpServletRequest/HttpServletResponse对象
+	 *
+	 * 该类定义该方法的目的是给该类的以下四个私有嵌套静态类使用 :
+	 * RequestObjectFactory,ResponseObjectFactory,SessionObjectFactory,WebRequestObjectFactory
 	 * @see RequestContextHolder#currentRequestAttributes()
 	 */
 	private static ServletRequestAttributes currentRequestAttributes() {
@@ -316,6 +362,14 @@ public abstract class WebApplicationContextUtils {
 		return (ServletRequestAttributes) requestAttr;
 	}
 
+	/**
+	 * 在下面的代码中，该类定义了四个私有嵌套静态类 :
+	 * RequestObjectFactory,ResponseObjectFactory,SessionObjectFactory,WebRequestObjectFactory
+	 * 这四个静态类是四个工厂类，分别用于生成ServletRequest,ServletResponse,HttpSession,WebRequest对象,
+	 * 当开发人员使用@Autowired分别注入了以上四种类型的bean时，返回的其实是下面四个工厂类的对象，这四个工厂类对象
+	 * 均使用了上面定义的currentRequestAttributes()方法，能从当前请求处理线程中获取正确的ServletRequestAttributes
+	 * 对象，进而获取正确的ServletRequest,ServletResponse,HttpSession,WebRequest对象
+	 */
 
 	/**
 	 * Factory that exposes the current request object on demand.
