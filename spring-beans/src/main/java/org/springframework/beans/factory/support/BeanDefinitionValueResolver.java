@@ -354,6 +354,9 @@ class BeanDefinitionValueResolver {
 			Object bean;
 			String refName = ref.getBeanName();
 			refName = String.valueOf(doEvaluate(refName));
+			/**
+			 * 从父factory中获取bean
+			 */
 			if (ref.isToParent()) {
 				if (this.beanFactory.getParentBeanFactory() == null) {
 					throw new BeanCreationException(
@@ -363,6 +366,9 @@ class BeanDefinitionValueResolver {
 				}
 				bean = this.beanFactory.getParentBeanFactory().getBean(refName);
 			}
+			/**
+			 * 从当前factory中获取bean
+			 */
 			else {
 				bean = this.beanFactory.getBean(refName);
 				this.beanFactory.registerDependentBean(refName, this.beanName);

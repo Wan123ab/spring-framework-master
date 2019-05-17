@@ -581,7 +581,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		/**
-		 * 获取bean包装类的包装实例，也就是真正的bean实例
+		 * 获取bean包装类的包装实例，也就是真正的bean实例：
+		 * 先把真实的bean给暴露出来，然后作为参数传入下面解决循环依赖的方法
+		 * 在addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean))之前执行
+		 * 确保该方法返回的bean与此处bean指向同一个对象
+		 *
 		 */
 		final Object bean = instanceWrapper.getWrappedInstance();
 		/**
@@ -640,9 +644,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 *  }
 			 *
 			 *  看看第2个参数() -> getEarlyBeanReference(beanName, mbd, bean)，为ObjectFactory类型，会存到3级缓存singletonFactories中，
-			 *  其方法getObject()的实现为getEarlyBeanReference(beanName, mbd, bean)，将返回1个早期引用。
+			 *  其方法getObject()的实现为getEarlyBeanReference(beanName, mbd, bean)，将返回1个早期引用(可能是代理bean)。
 			 *  ps：何为早期引用？
 			 *  就是不完整的bean，只是实例化了，但属性尚未装配
+			 *
+			 * @see DefaultSingletonBeanRegistry#addSingletonFactory(java.lang.String, org.springframework.beans.factory.ObjectFactory)
+			 * @see AbstractAutowireCapableBeanFactory#getEarlyBeanReference(java.lang.String, org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Object)
 			 */
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
@@ -663,7 +670,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 * populateBean属性注入完成，下面开始初始化，在这里会做下面工作
 			 * 1、执行BeanPostProcessor 的postProcessBeforeInitialization方法
 			 * 2、执行init方法
-			 * 3、执行BeanPostProcessor 的postProcessAfterInitialization方法
+			 * 3、执行BeanPostProcessor 的postProcessAfterInitialization方法，Spring Aop会在这里进行代理增强！
 			 */
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
@@ -1020,6 +1027,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
 		Object exposedObject = bean;
+		/**
+		 * 如果注册了SmartInstantiationAwareBeanPostProcessor实现类，那么通过这个ibp返回bean
+		 * 比如AbstractAutoProxyCreator将有可能返回代理bean
+		 * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#getEarlyBeanReference(java.lang.Object, java.lang.String)
+		 */
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
@@ -1532,6 +1544,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (pvs != null) {
 			/**
 			 * 属性已经在pvs中准备好了，开始设置属性
+			 * @see AbstractAutowireCapableBeanFactory#applyPropertyValues(java.lang.String, org.springframework.beans.factory.config.BeanDefinition, org.springframework.beans.BeanWrapper, org.springframework.beans.PropertyValues)
+			 * @see BeanDefinitionValueResolver#resolveReference(java.lang.Object, org.springframework.beans.factory.config.RuntimeBeanReference)
 			 */
 			applyPropertyValues(beanName, mbd, bw, pvs);
 		}
@@ -1552,7 +1566,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		String[] propertyNames = unsatisfiedNonSimpleProperties(mbd, bw);
 		for (String propertyName : propertyNames) {
 			if (containsBean(propertyName)) {
-				//从beanFactory中获取属性bean
+				/**
+				 * 如果bean工厂有这个属性依赖bean，直接调用
+				 * @see AbstractBeanFactory#getBean(java.lang.String)
+				 * 进行初始化，然后添加到属性依赖中
+				 */
 				Object bean = getBean(propertyName);
 				//添加属性依赖
 				pvs.add(propertyName, bean);
@@ -1803,7 +1821,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				String propertyName = pv.getName();
 				//原始属性值，即转换前的属性值
 				Object originalValue = pv.getValue();
-				//转换属性值
+				/**
+				 * 重点：转换属性值
+				 * 如果属性为factory中的另一个bean，那么此处将调用getBean进行获取
+				 * @see BeanDefinitionValueResolver#resolveReference(java.lang.Object, org.springframework.beans.factory.config.RuntimeBeanReference)
+				 */
 				Object resolvedValue = valueResolver.resolveValueIfNecessary(pv, originalValue);
 				//转换后的属性值
 				Object convertedValue = resolvedValue;
@@ -1897,15 +1919,27 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}, getAccessControlContext());
 		}
 		else {
+			/**
+			 * 执行BeanPostProcessor后处理前先执行Aware方法
+			 * 1、BeanNameAware
+			 * 2、BeanClassLoaderAware
+			 * 3、BeanFactoryAware
+			 */
 			invokeAwareMethods(beanName, bean);
 		}
 
 		Object wrappedBean = bean;
 		if (mbd == null || !mbd.isSynthetic()) {
+			/**
+			 * 执行BeanPostProcessor的postProcessBeforeInitialization方法
+			 */
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
+			/**
+			 * 执行init方法
+			 */
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -1914,6 +1948,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Invocation of init method failed", ex);
 		}
 		if (mbd == null || !mbd.isSynthetic()) {
+			/**
+			 * 执行BeanPostProcessor的postProcessAfterInitialization方法
+			 * Spring Aop将有可能在这一步进行代理增强，返回代理类
+			 * @see org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator
+			 * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#postProcessAfterInitialization(java.lang.Object, java.lang.String)
+			 * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#wrapIfNecessary(java.lang.Object, java.lang.String, java.lang.Object)
+			 */
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
 

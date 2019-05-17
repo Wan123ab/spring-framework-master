@@ -39,6 +39,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
 import org.springframework.beans.support.ResourceEditorRegistrar;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -812,6 +813,19 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		 * 如果beanFactory未注册environment，此处自动注册1个
 		 */
 		if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
+			/**
+			 * 通过这种方式注册的单例bean不会执行任何初始化和销毁的回调方法，如果希望bean能够
+			 * 执行这些回调，那么应该采用BeanDefinitionRegistry进行注册
+			 * 注册完后将：
+			 * 1、放入1级缓存
+			 * 2、从2级缓存移除
+			 * 3、从3级缓存移除
+			 * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet
+			 * @see org.springframework.beans.factory.DisposableBean#destroy
+			 * @see org.springframework.beans.factory.support.BeanDefinitionRegistry#registerBeanDefinition
+			 * 最终会调用
+			 * @see DefaultSingletonBeanRegistry#addSingleton(java.lang.String, java.lang.Object)
+			 */
 			beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
 		}
 		/**

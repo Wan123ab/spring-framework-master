@@ -497,6 +497,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		List<String> result = new ArrayList<>();
 
 		// Check all bean definitions.
+		/**
+		 * 检查XML中配置的beanDefinition
+		 */
 		for (String beanName : this.beanDefinitionNames) {
 			// Only consider bean as eligible if the bean name
 			// is not defined as alias for some other bean.
@@ -550,6 +553,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		// Check manually registered singletons too.
+		/**
+		 * 检查BeanFactory帮我们手动注册的3个单例bean（已经初始化好了，存入了1级缓存，初始化的过程中忽略了初始化和销毁回调）
+		 * environment、systemProperties、systemEnvironment
+		 */
 		for (String beanName : this.manualSingletonNames) {
 			try {
 				// In case of FactoryBean, match object created by FactoryBean.

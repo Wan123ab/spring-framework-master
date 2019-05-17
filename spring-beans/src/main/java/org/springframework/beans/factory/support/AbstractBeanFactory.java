@@ -251,6 +251,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		/**
 		 * 检查早已实例化的单例bean，并且允许当前创建的bean被（其他bean）早期依赖：非常重要，用于解决循环依赖！
 		 * 对于单例bean，整个IOC容器只会初始化一次，不需要重复创建
+		 * @see DefaultSingletonBeanRegistry#getSingleton(java.lang.String)
 		 */
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
@@ -375,6 +376,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					 */
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
+							/**
+							 * @see AbstractAutowireCapableBeanFactory#doCreateBean
+							 */
 							return createBean(beanName, mbd, args);
 						}
 						catch (BeansException ex) {
