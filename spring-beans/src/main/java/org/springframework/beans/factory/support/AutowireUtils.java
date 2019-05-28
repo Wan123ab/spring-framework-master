@@ -121,7 +121,12 @@ abstract class AutowireUtils {
 		return false;
 	}
 
-	/**
+	/**根据指定的类型requiredType对要装配的值autowiringValue进行解析
+	 * 如果同时满足以下3个条件，将创建jdk动态代理
+	 * 1、autowiringValue实现了ObjectFactory接口
+	 * 2、autowiringValue不是requiredType的实例
+	 * 3、requiredType是接口
+	 *
 	 * Resolve the given autowiring value against the given required type,
 	 * e.g. an {@link ObjectFactory} value to its actual object result.
 	 * @param autowiringValue the value to resolve
@@ -131,8 +136,31 @@ abstract class AutowireUtils {
 	public static Object resolveAutowiringValue(Object autowiringValue, Class<?> requiredType) {
 		if (autowiringValue instanceof ObjectFactory && !requiredType.isInstance(autowiringValue)) {
 			ObjectFactory<?> factory = (ObjectFactory<?>) autowiringValue;
+			/**
+			 * @desc autowiringValue实现了Serializable接口并且requiredType是接口
+			 * @author 万强
+			 * @date 2019/5/24 17:29
+			 */
 			if (autowiringValue instanceof Serializable && requiredType.isInterface()) {
+				/**
+				 * @desc 创建jdk动态代理
+				 * @author 万强
+				 * @date 2019/5/24 17:26
+				 */
 				autowiringValue = Proxy.newProxyInstance(requiredType.getClassLoader(),
+						/**
+						 * @desc 注意第3个参数为AutowireUtils.ObjectFactoryDelegatingInvocationHandler实例，
+						 * 在调用有参构造实例化时传入ObjectFactory并维护在内部，该代理对象调用方法是实际上是
+						 * ObjectFactory.getObject()返回的对象在调用方法
+						 * @author 万强
+						 * @date 2019/5/24 17:27
+						 * @see ObjectFactoryDelegatingInvocationHandler
+						 * @see ObjectFactory#getObject()
+						 *
+						 * 如果是注入request，那么此处的ObjectFactory就是RequestObjectFactory
+						 * @see org.springframework.web.context.support.WebApplicationContextUtils#registerWebApplicationScopes(org.springframework.beans.factory.config.ConfigurableListableBeanFactory, javax.servlet.ServletContext)
+						 * @see org.springframework.web.context.support.WebApplicationContextUtils.RequestObjectFactory
+						 */
 						new Class<?>[] {requiredType}, new ObjectFactoryDelegatingInvocationHandler(factory));
 			}
 			else {
@@ -267,6 +295,7 @@ abstract class AutowireUtils {
 
 	/**
 	 * Reflective {@link InvocationHandler} for lazy access to the current target object.
+	 * 当Spring注入request时，实际上注入的时AutowireUtils.ObjectFactoryDelegatingInvocationHandler的实例
 	 */
 	@SuppressWarnings("serial")
 	private static class ObjectFactoryDelegatingInvocationHandler implements InvocationHandler, Serializable {

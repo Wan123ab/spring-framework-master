@@ -193,6 +193,12 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 
 
 	public RequestMappingHandlerAdapter() {
+		/**
+		 * 为RequestMappingHandlerAdapter初始化3个MessageConverter
+		 * 1、StringHttpMessageConverter
+		 * 2、ByteArrayHttpMessageConverter
+		 * 3、AllEncompassingFormHttpMessageConverter
+		 */
 		StringHttpMessageConverter stringHttpMessageConverter = new StringHttpMessageConverter();
 		stringHttpMessageConverter.setWriteAcceptCharset(false);  // see SPR-7316
 
@@ -580,30 +586,55 @@ public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter
 			return;
 		}
 
+		/**
+		 * 获取所有标记了@ControllerAdvice的bean，并将其包装为ControllerAdviceBean
+		 */
 		List<ControllerAdviceBean> adviceBeans = ControllerAdviceBean.findAnnotatedBeans(getApplicationContext());
 		AnnotationAwareOrderComparator.sort(adviceBeans);
 
 		List<Object> requestResponseBodyAdviceBeans = new ArrayList<>();
 
+		/**
+		 * 遍历标记了@ControllerAdvice的bean
+		 */
 		for (ControllerAdviceBean adviceBean : adviceBeans) {
 			Class<?> beanType = adviceBean.getBeanType();
 			if (beanType == null) {
 				throw new IllegalStateException("Unresolvable type for ControllerAdviceBean: " + adviceBean);
 			}
+			/**
+			 * 筛选该bean所有无@RequestMapping注解，有@ModelAttribute的方法
+			 */
 			Set<Method> attrMethods = MethodIntrospector.selectMethods(beanType, MODEL_ATTRIBUTE_METHODS);
 			if (!attrMethods.isEmpty()) {
+				/**
+				 * 放入modelAttributeAdviceCache缓存
+				 */
 				this.modelAttributeAdviceCache.put(adviceBean, attrMethods);
 			}
+			/**
+			 * 筛选该bean所有有@InitBinder的方法
+			 */
 			Set<Method> binderMethods = MethodIntrospector.selectMethods(beanType, INIT_BINDER_METHODS);
 			if (!binderMethods.isEmpty()) {
+				/**
+				 * 存入initBinderAdviceCache缓存
+				 */
 				this.initBinderAdviceCache.put(adviceBean, binderMethods);
 			}
+			/**
+			 * 如果beanType是RequestBodyAdvice或者ResponseBodyAdvice的子类，
+			 * 存入requestResponseBodyAdviceBeans
+			 */
 			if (RequestBodyAdvice.class.isAssignableFrom(beanType) || ResponseBodyAdvice.class.isAssignableFrom(beanType)) {
 				requestResponseBodyAdviceBeans.add(adviceBean);
 			}
 		}
 
 		if (!requestResponseBodyAdviceBeans.isEmpty()) {
+			/**
+			 * 将requestResponseBodyAdviceBeans添加到requestResponseBodyAdvice中
+			 */
 			this.requestResponseBodyAdvice.addAll(0, requestResponseBodyAdviceBeans);
 		}
 

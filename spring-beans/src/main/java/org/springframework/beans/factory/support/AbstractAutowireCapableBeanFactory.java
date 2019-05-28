@@ -514,6 +514,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 * 前提条件：
 			 * 对于相应的 bean 我们有自定义的 TargetSource 实现，进到 getCustomTargetSource(...) 方法就清楚了，
 			 * 我们需要配置一个 customTargetSourceCreators，它是一个 TargetSourceCreator 数组
+			 *
+			 * 另外：如果注册了InstantiationAwareBeanPostProcessor实现类，将在实例化任何bean之前
+			 * 调用其后处理方法
+			 * @see InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation
 			 */
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {

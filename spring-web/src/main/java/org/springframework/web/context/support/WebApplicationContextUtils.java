@@ -211,8 +211,11 @@ public abstract class WebApplicationContextUtils {
 	 * @param sc the ServletContext that we're running within
 	 */
 	/**
-	 * 向WebApplicationContext使用的BeanFactory注册web有关作用域对象 :
+	 * 为WebApplicationContext内部维护的的BeanFactory注册web有关作用域对象 :
 	 * request, session, globalSession, application
+	 * 比如
+	 * 		@Autowired
+	 * 		private HttpServletRequest
 	 */
 	public static void registerWebApplicationScopes(ConfigurableListableBeanFactory beanFactory,
 			@Nullable ServletContext sc) {
@@ -379,6 +382,11 @@ public abstract class WebApplicationContextUtils {
 
 		@Override
 		public ServletRequest getObject() {
+			/**
+			 * @desc 封装的是当前线程的Request
+			 * @author 万强
+			 * @date 2019/5/24 17:45
+			 */
 			return currentRequestAttributes().getRequest();
 		}
 

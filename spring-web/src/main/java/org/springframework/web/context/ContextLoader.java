@@ -425,6 +425,12 @@ public class ContextLoader {
 		}
 	}
 
+	/**
+	 * 配置并刷新WebApplicationContext，流程类似于刷新SpringMvc容器
+	 * @see org.springframework.web.servlet.FrameworkServlet#configureAndRefreshWebApplicationContext(org.springframework.web.context.ConfigurableWebApplicationContext)
+	 * @param wac
+	 * @param sc
+	 */
 	protected void configureAndRefreshWebApplicationContext(ConfigurableWebApplicationContext wac, ServletContext sc) {
 		/**
 		 * 给ConfigurableApplicationContext实现类设置1个unique id

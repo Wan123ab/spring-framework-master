@@ -139,6 +139,8 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 	}
 
 	/**
+	 * 入口方法，初始化servlet时将回调此方法用于初始化DispatcherServlet
+	 *
 	 * Map config parameters onto bean properties of this servlet, and
 	 * invoke subclass initialization.
 	 * @throws ServletException if bean properties are invalid (or required
@@ -151,10 +153,25 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
 		if (!pvs.isEmpty()) {
 			try {
+				/**
+				 * 以当前对象为target创建一个包装类BeanWrapper
+				 */
 				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
+				/**
+				 * 创建资源加载器
+				 */
 				ResourceLoader resourceLoader = new ServletContextResourceLoader(getServletContext());
+				/**
+				 * 为BeanWrapper设置编辑器
+				 */
 				bw.registerCustomEditor(Resource.class, new ResourceEditor(resourceLoader, getEnvironment()));
+				/**
+				 * 初始化BeanWrapper，模板方法，Spring也没有提供实现
+				 */
 				initBeanWrapper(bw);
+				/**
+				 * 为BeanWrapper设置属性
+				 */
 				bw.setPropertyValues(pvs, true);
 			}
 			catch (BeansException ex) {
@@ -166,6 +183,10 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 		}
 
 		// Let subclasses do whatever initialization they like.
+		/**
+		 * 模板方法，初始化ServletBean，Spring提供了1个子类实现
+		 * @see FrameworkServlet#initServletBean()
+		 */
 		initServletBean();
 	}
 

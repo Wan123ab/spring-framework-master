@@ -368,11 +368,17 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				 */
 				if (mbd.isSingleton()) {
 					/**
-					 *从单例bean缓存Map（singletonObjects）中获取指定beanName的单例对象
+					 * 从单例bean缓存Map（singletonObjects）中获取指定beanName的单例对象
 					 * 如果尚未注册，那么创建并注册一个新的单例bean。
 					 *
 					 * 这里第2个参数非常重要，使用lamda表达式创建了一个【ObjectFactory】接口的实现，并实现了接口方法
 					 * getObject()---调用createBean(beanName, mbd, args)
+					 *
+					 * 注意：
+					 * 与创建原型模式和其他模式的bean相比，多了一个getSingleton，在这个方法中会在调用createBean方法前后做一些处理：
+					 * 1、判断1级缓存singletonObjects是否包含bean，如果是直接返回
+					 * 2、singletonsCurrentlyInCreation操作（创建前后加入和移除）
+					 * 3、创建完成后加入1级缓存，从2、3级缓存中移除
 					 */
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
@@ -1717,6 +1723,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		/**
+		 * 如果name以"&"开头
+		 */
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
@@ -1735,6 +1744,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		Object object = null;
 		if (mbd == null) {
+			/**
+			 * 从factoryBeanObjectCache中取出该factoryBean生产的真实对象
+			 * @see FactoryBeanRegistrySupport#getCachedObjectForFactoryBean(java.lang.String)
+			 */
 			object = getCachedObjectForFactoryBean(beanName);
 		}
 		if (object == null) {
@@ -1745,6 +1758,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				mbd = getMergedLocalBeanDefinition(beanName);
 			}
 			boolean synthetic = (mbd != null && mbd.isSynthetic());
+			/**
+			 * 获取指定factoryBean暴露的真实对象，并将暴露的对象最终放入factoryBeanObjectCache
+			 * @see FactoryBeanRegistrySupport#getObjectFromFactoryBean(org.springframework.beans.factory.FactoryBean, java.lang.String, boolean)
+			 */
 			object = getObjectFromFactoryBean(factory, beanName, !synthetic);
 		}
 		return object;

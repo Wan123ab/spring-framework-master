@@ -94,10 +94,21 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @see org.springframework.beans.factory.FactoryBean#getObject()
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
+		/**
+		 * 1、是单例bean
+		 * 2、1级缓存singletonObjects包含beanName
+		 */
 		if (factory.isSingleton() && containsSingleton(beanName)) {
 			synchronized (getSingletonMutex()) {
+				/**
+				 * 从factoryBeanObject缓存factoryBeanObjectCache中取出暴露的单例bean
+				 */
 				Object object = this.factoryBeanObjectCache.get(beanName);
 				if (object == null) {
+					/**
+					 * 调用factory.getObject()获取真实对象
+					 * 如果factory.getObject()返回null，那么返回new NullBean()
+					 */
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
 					// (e.g. because of circular reference processing triggered by custom getBean calls)
@@ -111,8 +122,18 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 								// Temporarily return non-post-processed object, not storing it yet..
 								return object;
 							}
+							/**
+							 * 加入singletonsCurrentlyInCreation
+							 */
 							beforeSingletonCreation(beanName);
 							try {
+								/**
+								 * 重点：后处理从factoryBean暴露的bean，可以在这一步进行自动代理
+								 *
+								 * 模板方法，本身实现是原样返回，Spring提供了1个实现
+								 * @see AbstractAutowireCapableBeanFactory#postProcessObjectFromFactoryBean(java.lang.Object, java.lang.String)
+								 * Spring将在该bean初始化后回调所有注册的BeanPostProcessors
+								 */
 								object = postProcessObjectFromFactoryBean(object, beanName);
 							}
 							catch (Throwable ex) {
@@ -120,10 +141,19 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 										"Post-processing of FactoryBean's singleton object failed", ex);
 							}
 							finally {
+								/**
+								 * 从singletonsCurrentlyInCreation中移除
+								 */
 								afterSingletonCreation(beanName);
 							}
 						}
+						/**
+						 * 判断1级缓存singletonObjects是否包含beanName
+						 */
 						if (containsSingleton(beanName)) {
+							/**
+							 * 放入factoryBeanObjectCache缓存
+							 */
 							this.factoryBeanObjectCache.put(beanName, object);
 						}
 					}
