@@ -20,9 +20,17 @@ import java.beans.PropertyDescriptor;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValues;
+import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
 import org.springframework.lang.Nullable;
 
 /**
+ * BeanPostProcessor子接口，Spring容器扩展点之一，提供了3个回调接口
+ * 1、bean实例化之前的回调
+ * 2、bean实例化之后，但是属性设置(包括属性装配)之前
+ * 3、在factory将属性PropertyValues应用到bean之前
+ *
+ * @see AbstractAutowireCapableBeanFactory#createBean(java.lang.String, org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Object[])
+ *
  * Subinterface of {@link BeanPostProcessor} that adds a before-instantiation callback,
  * and a callback after instantiation but before explicit properties are set or
  * autowiring occurs.
@@ -47,6 +55,8 @@ import org.springframework.lang.Nullable;
 public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 
 	/**
+	 * bean实例化之前执行，可以在这一步产生代理proxy
+	 *
 	 * Apply this BeanPostProcessor <i>before the target bean gets instantiated</i>.
 	 * The returned bean object may be a proxy to use instead of the target bean,
 	 * effectively suppressing default instantiation of the target bean.
@@ -76,6 +86,10 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	}
 
 	/**
+	 * 在bean实例化之后，属性设置之前执行
+	 * 1、返回true，那么可对bean进行自定义属性注入
+	 * 2、返回false，跳过属性设置。同时也将阻止其他后续InstantiationAwareBeanPostProcessor实现类对此bean的处理
+	 *
 	 * Perform operations after the bean has been instantiated, via a constructor or factory method,
 	 * but before Spring property population (from explicit properties or autowiring) occurs.
 	 * <p>This is the ideal callback for performing custom field injection on the given bean
@@ -95,6 +109,9 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 	}
 
 	/**
+	 * 在factory将属性PropertyValues应用到bean之前对属性PropertyValues进行后处理，
+	 * 此时的bean已经实例化，但是没有设置属性
+	 *
 	 * Post-process the given property values before the factory applies them
 	 * to the given bean, without any need for property descriptors.
 	 * <p>Implementations should return {@code null} (the default) if they provide a custom

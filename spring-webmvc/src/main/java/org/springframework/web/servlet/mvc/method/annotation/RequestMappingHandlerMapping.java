@@ -53,6 +53,8 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 /**
+ * 基于@Controller注解的class中的方法级别@RequestMapping注解，创建RequestMappingInfo实例
+ *
  * Creates {@link RequestMappingInfo} instances from type and method-level
  * {@link RequestMapping @RequestMapping} annotations in
  * {@link Controller @Controller} classes.
@@ -156,8 +158,14 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		this.embeddedValueResolver = resolver;
 	}
 
+	/**
+	 * 开始初始化
+	 */
 	@Override
 	public void afterPropertiesSet() {
+		/**
+		 * 构建{@link RequestMappingInfo.BuilderConfiguration}，并初始化相关属性
+		 */
 		this.config = new RequestMappingInfo.BuilderConfiguration();
 		this.config.setUrlPathHelper(getUrlPathHelper());
 		this.config.setPathMatcher(getPathMatcher());
@@ -166,6 +174,9 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		this.config.setRegisteredSuffixPatternMatch(this.useRegisteredSuffixPatternMatch);
 		this.config.setContentNegotiationManager(getContentNegotiationManager());
 
+		/**
+		 * 调用父类初始化方法
+		 */
 		super.afterPropertiesSet();
 	}
 
@@ -201,6 +212,8 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 
 
 	/**
+	 * 判断给定的beanType是否有类级别的@Controller或@RequestMapping，有其中一个即为handler
+	 *
 	 * {@inheritDoc}
 	 * <p>Expects a handler to have either a type-level @{@link Controller}
 	 * annotation or a type-level @{@link RequestMapping} annotation.
@@ -212,6 +225,10 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	}
 
 	/**
+	 * 使用method和类级别的@RequestMapping创建一个RequestMappingInfo。
+	 * 将会合并类级别和方法级别上的@RequestMapping信息。这也是为什么同时在
+	 * 类和方法上定义@RequestMapping能起到作用的原因
+	 *
 	 * Uses method and type-level @{@link RequestMapping} annotations to create
 	 * the RequestMappingInfo.
 	 * @return the created RequestMappingInfo, or {@code null} if the method
@@ -222,14 +239,32 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	@Override
 	@Nullable
 	protected RequestMappingInfo getMappingForMethod(Method method, Class<?> handlerType) {
+		/**
+		 * 1、基于方法上的@RequestMapping注解，创建RequestMappingInfo
+		 */
 		RequestMappingInfo info = createRequestMappingInfo(method);
 		if (info != null) {
+			/**
+			 * 2、基于类上的 @RequestMapping 注解，创建RequestMappingInfo
+			 */
 			RequestMappingInfo typeInfo = createRequestMappingInfo(handlerType);
 			if (typeInfo != null) {
+				/**
+				 * 3、将1和2合并成一个新的RequestMappingInfo
+				 */
 				info = typeInfo.combine(info);
 			}
+			/**
+			 * 4、如果有前缀，再次合并生成新的RequestMappingInfo
+			 */
 			String prefix = getPathPrefix(handlerType);
 			if (prefix != null) {
+				/**
+				 * 这一步涉及到3个RequestMappingInfo
+				 * 1、使用prefix构建了1个新的
+				 * 2、combine合并之前的info，生成新的属性
+				 * 3、利用合并后的各种属性构建一个新的info并返回
+				 */
 				info = RequestMappingInfo.paths(prefix).build().combine(info);
 			}
 		}
@@ -256,12 +291,19 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	 * the supplied {@code annotatedElement} is a class or method.
 	 * @see #getCustomTypeCondition(Class)
 	 * @see #getCustomMethodCondition(Method)
+	 * @param element 可能是Method，也可能是Class
 	 */
 	@Nullable
 	private RequestMappingInfo createRequestMappingInfo(AnnotatedElement element) {
+		/**
+		 * 获取element上的@RequestMapping(类级别或方法级别，取决于element)，包含合并注解，如@GetMapping，@PostMapping
+		 */
 		RequestMapping requestMapping = AnnotatedElementUtils.findMergedAnnotation(element, RequestMapping.class);
 		RequestCondition<?> condition = (element instanceof Class ?
 				getCustomTypeCondition((Class<?>) element) : getCustomMethodCondition((Method) element));
+		/**
+		 * 基于@RequestMapping，创建RequestMappingInfo
+		 */
 		return (requestMapping != null ? createRequestMappingInfo(requestMapping, condition) : null);
 	}
 
@@ -298,6 +340,8 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	}
 
 	/**
+	 * 通过给定的@RequestMappingInfo创建RequestMappingInfo
+	 *
 	 * Create a {@link RequestMappingInfo} from the supplied
 	 * {@link RequestMapping @RequestMapping} annotation, which is either
 	 * a directly declared annotation, a meta-annotation, or the synthesized
@@ -306,6 +350,9 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	protected RequestMappingInfo createRequestMappingInfo(
 			RequestMapping requestMapping, @Nullable RequestCondition<?> customCondition) {
 
+		/**
+		 * 使用建造者模式构建一个builder
+		 */
 		RequestMappingInfo.Builder builder = RequestMappingInfo
 				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))
 				.methods(requestMapping.method())
@@ -317,6 +364,9 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		if (customCondition != null) {
 			builder.customCondition(customCondition);
 		}
+		/**
+		 * 最后给builder设置配置信息，并构建一个RequestMappingInfo
+		 */
 		return builder.options(this.config).build();
 	}
 
@@ -362,15 +412,36 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		}
 	}
 
+	/**
+	 * 根据request和pattern进行匹配
+	 * @param request the current request
+	 * @param pattern the pattern to match
+	 * @return
+	 */
 	@Override
 	public RequestMatchResult match(HttpServletRequest request, String pattern) {
+		/**
+		 * 根据路径pattern和配置信息config构建一个RequestMappingInfo
+		 */
 		RequestMappingInfo info = RequestMappingInfo.paths(pattern).options(this.config).build();
+		/**
+		 * 获取当前request匹配的RequestMappingInfo
+		 */
 		RequestMappingInfo matchingInfo = info.getMatchingCondition(request);
 		if (matchingInfo == null) {
 			return null;
 		}
+		/**
+		 * 获取匹配的pattern集合
+		 */
 		Set<String> patterns = matchingInfo.getPatternsCondition().getPatterns();
+		/**
+		 * 获取request请求路径
+		 */
 		String lookupPath = getUrlPathHelper().getLookupPathForRequest(request, LOOKUP_PATH);
+		/**
+		 * 构建一个请求匹配结果，可用于提取url上模板变量
+		 */
 		return new RequestMatchResult(patterns.iterator().next(), lookupPath, getPathMatcher());
 	}
 

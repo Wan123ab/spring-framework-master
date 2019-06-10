@@ -117,6 +117,11 @@ public abstract class AopUtils {
 	}
 
 	/**
+	 * 从指定的目标clz上选择一个可执行的method
+	 * 1、如果已经暴露在目标clz上，那么直接返回传入的method本身
+	 * 2、否则从目标clz的接口或者目标clz本身上返回一个相关的method
+	 * 目标clz通常可能是一个Aop代理
+	 *
 	 * Select an invocable method on the target type: either the given method itself
 	 * if actually exposed on the target type, or otherwise a corresponding method
 	 * on one of the target type's interfaces or on the target type itself.
@@ -132,7 +137,20 @@ public abstract class AopUtils {
 		if (targetType == null) {
 			return method;
 		}
+		/**
+		 * 从指定的目标clz上选择一个可执行的method
+		 * 1、如果已经暴露在目标clz上，那么直接返回传入的method本身
+		 * 2、否则从目标clz的接口或者目标clz本身上返回一个相关的method
+		 * 目标clz通常可能是一个JDK代理
+		 */
 		Method methodToUse = MethodIntrospector.selectInvocableMethod(method, targetType);
+
+		/**
+		 * 如果method同时满足下面条件，将抛出异常
+		 * 1、private修饰
+		 * 2、非static修饰
+		 * 3、targetType实现了SpringProxy接口（JDK或者CGLIB代理）
+		 */
 		if (Modifier.isPrivate(methodToUse.getModifiers()) && !Modifier.isStatic(methodToUse.getModifiers()) &&
 				SpringProxy.class.isAssignableFrom(targetType)) {
 			throw new IllegalStateException(String.format(

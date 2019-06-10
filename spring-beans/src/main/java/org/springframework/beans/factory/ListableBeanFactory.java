@@ -207,6 +207,16 @@ public interface ListableBeanFactory extends BeanFactory {
 	<T> Map<String, T> getBeansOfType(@Nullable Class<T> type) throws BeansException;
 
 	/**
+	 * 根据bean定义或FactoryBeans中{@code getObjectType}的值判断，返回与给定对象类型(包括子类)匹配的bean实例
+	 * 不检查可能匹配指定类型的嵌套bean
+	 * 1、如果allowEagerInit{@param allowEagerInit}属性被设置，那么将分析由FactoryBeans创建的bean，
+	 * 也就是说FactoryBeans将被初始化{@link FactoryBean#getObject()}以便进行type检查
+	 * 如果FactoryBean创建的对象不匹配，那么原始的FactoryBean本身将根据类型进行匹配
+	 * 2、如果allowEagerInit没有设置，那么只有原始的FactoryBean本身将根据类型进行匹配
+	 * 3、不考虑任何HierarchicalBeanFactory的情况，通过其他方式完成{@link BeanFactoryUtils#beansOfTypeIncludingAncestors(org.springframework.beans.factory.ListableBeanFactory, java.lang.Class, boolean, boolean)}
+	 * 4、不忽略通过bean定义之外的其他方法注册的单例bean
+	 *
+	 *
 	 * Return the bean instances that match the given object type (including
 	 * subclasses), judging from either bean definitions or the value of
 	 * {@code getObjectType} in the case of FactoryBeans.

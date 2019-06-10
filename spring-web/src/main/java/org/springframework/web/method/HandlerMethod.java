@@ -328,6 +328,9 @@ public class HandlerMethod {
 	}
 
 	/**
+	 * 如果当前handlerMethod包含的是handler beanName，而不是1个handler实例，
+	 * 那么先通过factory创建bean，再返回HandlerMethod
+	 *
 	 * If the provided instance contains a bean name rather than an object instance,
 	 * the bean name is resolved before a {@link HandlerMethod} is created and returned.
 	 */
@@ -336,6 +339,9 @@ public class HandlerMethod {
 		if (this.bean instanceof String) {
 			Assert.state(this.beanFactory != null, "Cannot resolve bean name without BeanFactory");
 			String beanName = (String) this.bean;
+			/**
+			 * 从factory中创建bean
+			 */
 			handler = this.beanFactory.getBean(beanName);
 		}
 		return new HandlerMethod(this, handler);

@@ -882,6 +882,8 @@ public abstract class ClassUtils {
 	}
 
 	/**
+	 * 返回指定clz的真实Class，通常就是clz本身，如果是CGLIB生成的子类，那么返回其原始Class
+	 *
 	 * Return the user-defined class for the given class: usually simply the given
 	 * class, but the original class in case of a CGLIB-generated subclass.
 	 * @param clazz the class to check
@@ -1097,6 +1099,10 @@ public abstract class ClassUtils {
 	}
 
 	/**
+	 * 获取指定class指定签名的public方法
+	 * 在指定任何签名的情况下，仅在有
+	 * 唯一的候选方法，即具有指定名称的单个公共方法的情况下才返回
+	 *
 	 * Determine whether the given class has a public method with the given signature,
 	 * and return it if available (else throws an {@code IllegalStateException}).
 	 * <p>In case of any signature specified, only returns the method if there is a

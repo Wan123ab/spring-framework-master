@@ -39,9 +39,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.i18n.LocaleContext;
@@ -594,6 +597,11 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		if (this.detectAllHandlerMappings) {
 			// Find all HandlerMappings in the ApplicationContext, including ancestor contexts.
+			/**
+			 * 1、先去容器（包括父容器）中查找所有实现HandlerMapping接口的bean，没有创建就进行创建
+			 *
+			 * @see DefaultListableBeanFactory#getBeansOfType(java.lang.Class, boolean, boolean)
+			 */
 			Map<String, HandlerMapping> matchingBeans =
 					BeanFactoryUtils.beansOfTypeIncludingAncestors(context, HandlerMapping.class, true, false);
 			if (!matchingBeans.isEmpty()) {
@@ -604,6 +612,9 @@ public class DispatcherServlet extends FrameworkServlet {
 		}
 		else {
 			try {
+				/**
+				 * 2、然后查找当前容器中名为handlerMapping的bean
+				 */
 				HandlerMapping hm = context.getBean(HANDLER_MAPPING_BEAN_NAME, HandlerMapping.class);
 				this.handlerMappings = Collections.singletonList(hm);
 			}
@@ -614,7 +625,13 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		// Ensure we have at least one HandlerMapping, by registering
 		// a default HandlerMapping if no other mappings are found.
+		/**
+		 * 3、如果上面1和2都没有找到HandlerMapping，那么使用默认策略创建至少一个HandlerMapping
+		 */
 		if (this.handlerMappings == null) {
+			/**
+			 * 创建HandlerMapping接口默认策略的prototype bean集合，非单例！！！
+			 */
 			this.handlerMappings = getDefaultStrategies(context, HandlerMapping.class);
 			if (logger.isTraceEnabled()) {
 				logger.trace("No HandlerMappings declared for servlet '" + getServletName() +
@@ -847,6 +864,10 @@ public class DispatcherServlet extends FrameworkServlet {
 	}
 
 	/**
+	 * 通过context内部的BeanFactory创建一个strategyInterface接口实现的集合。
+	 * 此为默认策略，集中定义在DispatcherServlet.properties中
+	 * @see org/springframework/web/servlet/DispatcherServlet.properties
+	 *
 	 * Create a List of default strategy objects for the given strategy interface.
 	 * <p>The default implementation uses the "DispatcherServlet.properties" file (in the same
 	 * package as the DispatcherServlet class) to determine the class names. It instantiates
@@ -860,11 +881,22 @@ public class DispatcherServlet extends FrameworkServlet {
 		String key = strategyInterface.getName();
 		String value = defaultStrategies.getProperty(key);
 		if (value != null) {
+			/**
+			 * 可能有多个Class全路径名，这里拆分成数组
+			 */
 			String[] classNames = StringUtils.commaDelimitedListToStringArray(value);
 			List<T> strategies = new ArrayList<>(classNames.length);
 			for (String className : classNames) {
 				try {
+					/**
+					 * 使用反射生成Class对象
+					 */
 					Class<?> clazz = ClassUtils.forName(className, DispatcherServlet.class.getClassLoader());
+					/**
+					 * 使用内部BeanFactory创建bean，非单例，为prototype类型
+					 * @see AbstractAutowireCapableBeanFactory#createBean(java.lang.Class)
+					 * @see AbstractAutowireCapableBeanFactory#createBean(java.lang.String, org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Object[])
+					 */
 					Object strategy = createDefaultStrategy(context, clazz);
 					strategies.add((T) strategy);
 				}
@@ -887,6 +919,9 @@ public class DispatcherServlet extends FrameworkServlet {
 	}
 
 	/**
+	 * 创建默认策略
+	 * @see AbstractAutowireCapableBeanFactory#createBean(java.lang.Class)
+	 *
 	 * Create a default strategy.
 	 * <p>The default implementation uses
 	 * {@link org.springframework.beans.factory.config.AutowireCapableBeanFactory#createBean}.
@@ -928,7 +963,7 @@ public class DispatcherServlet extends FrameworkServlet {
 
 		// Make framework objects available to handlers and view objects.
 		/**
-		 * 为当前request绑定一些对象对象
+		 * 为当前request绑定一些对象
 		 */
 		request.setAttribute(WEB_APPLICATION_CONTEXT_ATTRIBUTE, getWebApplicationContext());
 		request.setAttribute(LOCALE_RESOLVER_ATTRIBUTE, this.localeResolver);
@@ -945,6 +980,9 @@ public class DispatcherServlet extends FrameworkServlet {
 		}
 
 		try {
+			/**
+			 * 执行请求
+			 */
 			doDispatch(request, response);
 		}
 		finally {
@@ -1019,6 +1057,7 @@ public class DispatcherServlet extends FrameworkServlet {
 
 				// Determine handler for the current request.
 				/**
+				 * 重点
 				 * 获取当前request的HandlerExecutionChain
 				 */
 				mappedHandler = getHandler(processedRequest);
@@ -1251,6 +1290,10 @@ public class DispatcherServlet extends FrameworkServlet {
 	protected HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
 		if (this.handlerMappings != null) {
 			for (HandlerMapping mapping : this.handlerMappings) {
+				/**
+				 * 返回匹配当前request的第一个HandlerExecutionChain
+				 * @see org.springframework.web.servlet.handler.AbstractHandlerMapping#getHandler(javax.servlet.http.HttpServletRequest)
+				 */
 				HandlerExecutionChain handler = mapping.getHandler(request);
 				if (handler != null) {
 					return handler;

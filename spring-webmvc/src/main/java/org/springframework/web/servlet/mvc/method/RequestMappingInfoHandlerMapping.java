@@ -102,6 +102,11 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 	}
 
 	/**
+	 * 为当前request绑定更多变量，包括
+	 * 1、模板变量
+	 * 2、矩阵变量
+	 * 3、可生成的媒体类型
+	 *
 	 * Expose URI template variables, matrix variables, and producible media types in the request.
 	 * @see HandlerMapping#URI_TEMPLATE_VARIABLES_ATTRIBUTE
 	 * @see HandlerMapping#MATRIX_VARIABLES_ATTRIBUTE
@@ -109,9 +114,14 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 	 */
 	@Override
 	protected void handleMatch(RequestMappingInfo info, String lookupPath, HttpServletRequest request) {
+		/**
+		 * 调用父类方法为当前request绑定{@link HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE}
+		 */
 		super.handleMatch(info, lookupPath, request);
 
+		/**最佳路径*/
 		String bestPattern;
+		/**路径变量*/
 		Map<String, String> uriVariables;
 
 		Set<String> patterns = info.getPatternsCondition().getPatterns();
@@ -124,16 +134,28 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 			uriVariables = getPathMatcher().extractUriTemplateVariables(bestPattern, lookupPath);
 		}
 
+		/**
+		 * 为当前request绑定{@link HandlerMapping#BEST_MATCHING_PATTERN_ATTRIBUTE}
+		 */
 		request.setAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE, bestPattern);
 
+		/**
+		 * 为当前request绑定{@link HandlerMapping#MATRIX_VARIABLES_ATTRIBUTE}
+		 */
 		if (isMatrixVariableContentAvailable()) {
 			Map<String, MultiValueMap<String, String>> matrixVars = extractMatrixVariables(request, uriVariables);
 			request.setAttribute(HandlerMapping.MATRIX_VARIABLES_ATTRIBUTE, matrixVars);
 		}
 
+		/**
+		 * 为当前request绑定{@link HandlerMapping#URI_TEMPLATE_VARIABLES_ATTRIBUTE}
+		 */
 		Map<String, String> decodedUriVariables = getUrlPathHelper().decodePathVariables(request, uriVariables);
 		request.setAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, decodedUriVariables);
 
+		/**
+		 * 为当前request绑定{@link HandlerMapping#PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE}
+		 */
 		if (!info.getProducesCondition().getProducibleMediaTypes().isEmpty()) {
 			Set<MediaType> mediaTypes = info.getProducesCondition().getProducibleMediaTypes();
 			request.setAttribute(PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE, mediaTypes);
@@ -191,6 +213,9 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 			return null;
 		}
 
+		/**
+		 * 方法不匹配
+		 */
 		if (helper.hasMethodsMismatch()) {
 			Set<String> methods = helper.getAllowedMethods();
 			if (HttpMethod.OPTIONS.matches(request.getMethod())) {
@@ -200,6 +225,9 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 			throw new HttpRequestMethodNotSupportedException(request.getMethod(), methods);
 		}
 
+		/**
+		 * 可消费的Content-type不匹配
+		 */
 		if (helper.hasConsumesMismatch()) {
 			Set<MediaType> mediaTypes = helper.getConsumableMediaTypes();
 			MediaType contentType = null;
@@ -214,11 +242,17 @@ public abstract class RequestMappingInfoHandlerMapping extends AbstractHandlerMe
 			throw new HttpMediaTypeNotSupportedException(contentType, new ArrayList<>(mediaTypes));
 		}
 
+		/**
+		 * 可生产的Content-type不匹配
+		 */
 		if (helper.hasProducesMismatch()) {
 			Set<MediaType> mediaTypes = helper.getProducibleMediaTypes();
 			throw new HttpMediaTypeNotAcceptableException(new ArrayList<>(mediaTypes));
 		}
 
+		/**
+		 * 参数不匹配
+		 */
 		if (helper.hasParamsMismatch()) {
 			List<String[]> conditions = helper.getParamConditions();
 			throw new UnsatisfiedServletRequestParameterException(conditions, request.getParameterMap());

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.core.ResolvableType;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -305,6 +306,16 @@ public abstract class BeanFactoryUtils {
 	}
 
 	/**
+	 * 返回指定type或type子类的所有bean
+	 * 1、如果当前bean factory是HierarchicalBeanFactory，也会去祖先容器中查找
+	 * 2、如果allowEagerInit{@param allowEagerInit}属性被设置，那么将分析由FactoryBeans创建的bean，
+	 * 也就是说FactoryBeans将被初始化{@link FactoryBean#getObject()}以便进行type检查
+	 * 如果FactoryBean创建的对象不匹配，那么原始的FactoryBean本身将根据类型进行匹配
+	 * 3、如果allowEagerInit没有设置，那么只有原始的FactoryBean本身将根据类型进行匹配
+	 * 4、如果存在beanName相同的情况，那么最低等级的factory中的bean将被返回，祖先factory中的
+	 * 相关bean将被隐藏。即孩子factory中的bean将被优先返回
+	 *
+	 *
 	 * Return all beans of the given type or subtypes, also picking up beans defined in
 	 * ancestor bean factories if the current bean factory is a HierarchicalBeanFactory.
 	 * The returned Map will only contain beans of this type.
@@ -335,15 +346,41 @@ public abstract class BeanFactoryUtils {
 			ListableBeanFactory lbf, Class<T> type, boolean includeNonSingletons, boolean allowEagerInit)
 			throws BeansException {
 
+		/**
+		 * 下面1、2、3这3个流程组合使用实现了一个有趣的算法
+		 * 1、自底向上递归查询
+		 * 2、自底向上保留，剔除重复元素（先加入的保留，后加入的重复元素pass）
+		 */
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
 		Map<String, T> result = new LinkedHashMap<>(4);
+		/**
+		 * 1、从当前ListableBeanFactory中找，并存入Map
+		 *
+		 * @see DefaultListableBeanFactory#getBeansOfType(java.lang.Class, boolean, boolean)
+		 */
 		result.putAll(lbf.getBeansOfType(type, includeNonSingletons, allowEagerInit));
+		/**
+		 * 如果bean factory是HierarchicalBeanFactory，还要去其祖先前factory中查找
+		 */
 		if (lbf instanceof HierarchicalBeanFactory) {
 			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
+			/**
+			 * 如果父factory也是ListableBeanFactory类型
+			 */
 			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
+				/**
+				 * 2、递归查找
+				 */
 				Map<String, T> parentResult = beansOfTypeIncludingAncestors(
 						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);
 				parentResult.forEach((beanName, beanInstance) -> {
+					/**
+					 * 3、重点：
+					 * 去重后存入Map，注意这里并没有直接通过put去重，
+					 * 因为这样会导致祖先factory中同名bean把孩子factory中的bean给顶掉了（即后面加入把前面加入的顶掉了），
+					 * 而是先判断孩子factory中是否有同名bean，有就pass，
+					 * 这样做的好处是既可以去重又可以保留孩子factory中的bean
+					 */
 					if (!result.containsKey(beanName) && !hbf.containsLocalBean(beanName)) {
 						result.put(beanName, beanInstance);
 					}

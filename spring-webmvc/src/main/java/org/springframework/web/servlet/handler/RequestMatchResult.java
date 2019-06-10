@@ -22,6 +22,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.PathMatcher;
 
 /**
+ * 容器，用于通过{@link MatchableHandlerMapping}获取请求模式匹配的结果，以及进一步从模式中提取URI模板变量的方法
+ *
  * Container for the result from request pattern matching via
  * {@link MatchableHandlerMapping} with a method to further extract
  * URI template variables from the pattern.
@@ -56,6 +58,8 @@ public class RequestMatchResult {
 
 
 	/**
+	 * 提取模板变量
+	 *
 	 * Extract URI template variables from the matching pattern as defined in
 	 * {@link PathMatcher#extractUriTemplateVariables}.
 	 * @return a map with URI template variables

@@ -98,6 +98,12 @@ public final class MethodIntrospector {
 	}
 
 	/**
+	 *
+	 * 从指定的目标clz上选择一个可执行的method
+	 * 1、如果已经暴露在目标clz上，那么直接返回传入的method本身
+	 * 2、否则从目标clz的接口或者目标clz本身上返回一个相关的method
+	 * 目标clz通常可能是一个Aop代理
+	 *
 	 * Select an invocable method on the target type: either the given method itself
 	 * if actually exposed on the target type, or otherwise a corresponding method
 	 * on one of the target type's interfaces or on the target type itself.
@@ -111,14 +117,26 @@ public final class MethodIntrospector {
 	 * target type (typically due to a proxy mismatch)
 	 */
 	public static Method selectInvocableMethod(Method method, Class<?> targetType) {
+		/**
+		 * 如果method所在的clz是目标targetType的父类或父接口
+		 */
 		if (method.getDeclaringClass().isAssignableFrom(targetType)) {
+			/**
+			 * 说明method必定被targetType继承或实现，即被targetType暴露，直接返回method
+			 */
 			return method;
 		}
 		try {
+			/**
+			 * 获取method的方法名和参数类型，即方法签名
+			 */
 			String methodName = method.getName();
 			Class<?>[] parameterTypes = method.getParameterTypes();
 			for (Class<?> ifc : targetType.getInterfaces()) {
 				try {
+					/**
+					 * 根据method的方法签名去targetType所有接口上找
+					 */
 					return ifc.getMethod(methodName, parameterTypes);
 				}
 				catch (NoSuchMethodException ex) {
@@ -126,6 +144,9 @@ public final class MethodIntrospector {
 				}
 			}
 			// A final desperate attempt on the proxy class itself...
+			/**
+			 * 对代理类本身最后一次绝望的尝试
+			 */
 			return targetType.getMethod(methodName, parameterTypes);
 		}
 		catch (NoSuchMethodException ex) {

@@ -601,15 +601,37 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		return getBeansOfType(type, true, true);
 	}
 
+	/**
+	 * 在当前factory中，根据bean定义或FactoryBeans中{@code getObjectType}的值判断，返回与给定对象类型(包括子类)匹配的bean实例
+	 *
+	 * @param type the class or interface to match, or {@code null} for all concrete beans
+	 * @param includeNonSingletons whether to include prototype or scoped beans too
+	 * or just singletons (also applies to FactoryBeans)
+	 * @param allowEagerInit whether to initialize <i>lazy-init singletons</i> and
+	 * <i>objects created by FactoryBeans</i> (or by factory methods with a
+	 * "factory-bean" reference) for the type check. Note that FactoryBeans need to be
+	 * eagerly initialized to determine their type: So be aware that passing in "true"
+	 * for this flag will initialize FactoryBeans and "factory-bean" references.
+	 * @param <T>
+	 * @return
+	 * @throws BeansException
+	 * @see BeanFactoryUtils#beansOfTypeIncludingAncestors(org.springframework.beans.factory.ListableBeanFactory, java.lang.Class, boolean, boolean)
+	 */
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> Map<String, T> getBeansOfType(@Nullable Class<T> type, boolean includeNonSingletons, boolean allowEagerInit)
 			throws BeansException {
 
+		/**
+		 * 从当前factory中获取指定type的所有beanName
+		 */
 		String[] beanNames = getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
 		Map<String, T> result = new LinkedHashMap<>(beanNames.length);
 		for (String beanName : beanNames) {
 			try {
+				/**
+				 * 获取bean，没有就创建
+				 */
 				Object beanInstance = getBean(beanName);
 				if (!(beanInstance instanceof NullBean)) {
 					result.put(beanName, (T) beanInstance);

@@ -380,6 +380,8 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 
 
 	/**
+	 * 获取匹配当前request的HandlerExecutionChain
+	 *
 	 * Look up a handler for the given request, falling back to the default
 	 * handler if no specific one is found.
 	 * @param request current HTTP request
@@ -389,8 +391,15 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	@Override
 	@Nullable
 	public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+		/**
+		 * 根据当前request获取最匹配的handler，模板方法，Spring提供了多个实现
+		 * @see AbstractHandlerMethodMapping#getHandlerInternal(javax.servlet.http.HttpServletRequest)
+		 */
 		Object handler = getHandlerInternal(request);
 		if (handler == null) {
+			/**
+			 * 没找到匹配的handler，使用默认handler
+			 */
 			handler = getDefaultHandler();
 		}
 		if (handler == null) {
@@ -399,9 +408,15 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 		// Bean name or resolved handler?
 		if (handler instanceof String) {
 			String handlerName = (String) handler;
+			/**
+			 * 如果handler是beanName，从factory中获取
+			 */
 			handler = obtainApplicationContext().getBean(handlerName);
 		}
 
+		/**
+		 * 根据指定的handler和当前request构建一个HandlerExecutionChain
+		 */
 		HandlerExecutionChain executionChain = getHandlerExecutionChain(handler, request);
 
 		if (logger.isTraceEnabled()) {
@@ -441,6 +456,17 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	protected abstract Object getHandlerInternal(HttpServletRequest request) throws Exception;
 
 	/**
+	 * 为当前handler构建一个包含合适interceptors的HandlerExecutionChain
+	 * 传入的handler可能是一个原始handler，也可能是一个预构建的HandlerExecutionChain，
+	 * 因此此方法应该对上述2种情况进行处理：
+	 * 1、要么构建一个新的HandlerExecutionChain
+	 * 2、要么对已存在的HandlerExecutionChain（即传入的handler）进行扩展
+	 *
+	 * 如果想简单的添加自定义HandlerExecutionChain子类，需要做2步操作：
+	 * 1、调用{@code super.getHandlerExecutionChain(handler, request)}
+	 * 2、为上面返回的chain添加interceptor {@link HandlerExecutionChain#addInterceptor}
+	 *
+	 *
 	 * Build a {@link HandlerExecutionChain} for the given handler, including
 	 * applicable interceptors.
 	 * <p>The default implementation builds a standard {@link HandlerExecutionChain}
@@ -461,9 +487,15 @@ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport
 	 * @see #getAdaptedInterceptors()
 	 */
 	protected HandlerExecutionChain getHandlerExecutionChain(Object handler, HttpServletRequest request) {
+		/**
+		 * 判断传入的handler是不是HandlerExecutionChain，如果是直接使用，否则new个新的
+		 */
 		HandlerExecutionChain chain = (handler instanceof HandlerExecutionChain ?
 				(HandlerExecutionChain) handler : new HandlerExecutionChain(handler));
 
+		/**
+		 * 获取当前request的url并从adaptedInterceptors中找到匹配的所有interceptor，添加到HandlerExecutionChain中
+		 */
 		String lookupPath = this.urlPathHelper.getLookupPathForRequest(request, LOOKUP_PATH);
 		for (HandlerInterceptor interceptor : this.adaptedInterceptors) {
 			if (interceptor instanceof MappedInterceptor) {
