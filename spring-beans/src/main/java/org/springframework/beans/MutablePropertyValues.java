@@ -163,6 +163,8 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	}
 
 	/**
+	 * 添加PropertyValue，用来替换已存在的PropertyValue或者进行合并
+	 *
 	 * Add a PropertyValue object, replacing any existing one for the
 	 * corresponding property or getting merged with it (if applicable).
 	 * @param pv the PropertyValue object to add
@@ -171,12 +173,20 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	public MutablePropertyValues addPropertyValue(PropertyValue pv) {
 		for (int i = 0; i < this.propertyValueList.size(); i++) {
 			PropertyValue currentPv = this.propertyValueList.get(i);
+			/**
+			 * 匹配已有的属性
+			 */
 			if (currentPv.getName().equals(pv.getName())) {
+				/** 合并属性 */
 				pv = mergeIfRequired(pv, currentPv);
+				/** 覆盖属性 */
 				setPropertyValueAt(pv, i);
 				return this;
 			}
 		}
+		/**
+		 * 没有匹配到，直接设置到propertyValueList中
+		 */
 		this.propertyValueList.add(pv);
 		return this;
 	}

@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.BeanInitializationException;
+import org.springframework.core.PriorityOrdered;
 
 /**
  * Property resource configurer that overrides bean property values in an application
@@ -62,6 +63,18 @@ import org.springframework.beans.factory.BeanInitializationException;
  * @see #convertPropertyValue
  * @see PropertyPlaceholderConfigurer
  */
+
+/**
+ * BeanFactoryPostProcessor有2个非常重要的子类：
+ * 1、PropertyPlaceholderConfigurer:允许我们通过配置 Properties 的方式来取代Bean中定义的占位符---可以处理任何bean的占位符
+ * 2、PropertyOverrideConfigurer:允许我们对 Spring 容器中配置的任何bean定义的property信息进行覆盖替换---可以处理指定bean的指定属性
+ *
+ * PropertyOverrideConfigurer 的使用规则是 beanName.propertyName=value，这里需要注意的是 beanName.propertyName 则是该 bean 中存在的属性。
+ *
+ * PropertyOverrideConfigurer实现接口
+ * @see BeanFactoryPostProcessor
+ * @see PriorityOrdered
+ */
 public class PropertyOverrideConfigurer extends PropertyResourceConfigurer {
 
 	/**
@@ -69,7 +82,7 @@ public class PropertyOverrideConfigurer extends PropertyResourceConfigurer {
 	 */
 	public static final String DEFAULT_BEAN_NAME_SEPARATOR = ".";
 
-
+	/** 文件名分隔符 */
 	private String beanNameSeparator = DEFAULT_BEAN_NAME_SEPARATOR;
 
 	private boolean ignoreInvalidKeys = false;
@@ -98,14 +111,24 @@ public class PropertyOverrideConfigurer extends PropertyResourceConfigurer {
 		this.ignoreInvalidKeys = ignoreInvalidKeys;
 	}
 
-
+	/**
+	 * 对配置文件中的属性进行处理
+	 * @param beanFactory the BeanFactory used by the application context
+	 * @param props the Properties to apply
+	 * @throws BeansException
+	 */
 	@Override
 	protected void processProperties(ConfigurableListableBeanFactory beanFactory, Properties props)
 			throws BeansException {
-
+		/**
+		 * 迭代配置文件中的属性
+		 */
 		for (Enumeration<?> names = props.propertyNames(); names.hasMoreElements();) {
 			String key = (String) names.nextElement();
 			try {
+				/**
+				 * 处理配置文件中的key和value，组装成'beanName.property' entry
+				 */
 				processKey(beanFactory, key, props.getProperty(key));
 			}
 			catch (BeansException ex) {
@@ -126,14 +149,26 @@ public class PropertyOverrideConfigurer extends PropertyResourceConfigurer {
 	protected void processKey(ConfigurableListableBeanFactory factory, String key, String value)
 			throws BeansException {
 
+		/**
+		 * 判断key中是否存在"."，即获取其索引位置
+		 */
 		int separatorIndex = key.indexOf(this.beanNameSeparator);
 		if (separatorIndex == -1) {
 			throw new BeanInitializationException("Invalid key '" + key +
 					"': expected 'beanName" + this.beanNameSeparator + "property'");
 		}
+		/**
+		 * 拿到beanName
+		 */
 		String beanName = key.substring(0, separatorIndex);
+		/**
+		 * 拿到该bean的属性名
+		 */
 		String beanProperty = key.substring(separatorIndex + 1);
 		this.beanNames.add(beanName);
+		/**
+		 * 将解析好的属性设置到相关bean中
+		 */
 		applyPropertyValue(factory, beanName, beanProperty, value);
 		if (logger.isDebugEnabled()) {
 			logger.debug("Property '" + key + "' set to value [" + value + "]");
@@ -145,15 +180,23 @@ public class PropertyOverrideConfigurer extends PropertyResourceConfigurer {
 	 */
 	protected void applyPropertyValue(
 			ConfigurableListableBeanFactory factory, String beanName, String property, String value) {
-
+		/**
+		 * 从ConfigurableListableBeanFactory中取出指定beanName的BeanDefinition
+		 */
 		BeanDefinition bd = factory.getBeanDefinition(beanName);
 		BeanDefinition bdToUse = bd;
 		while (bd != null) {
 			bdToUse = bd;
 			bd = bd.getOriginatingBeanDefinition();
 		}
+		/**
+		 * 使用解析好的property和value构建一个PropertyValue
+		 */
 		PropertyValue pv = new PropertyValue(property, value);
 		pv.setOptional(this.ignoreInvalidKeys);
+		/**
+		 * 添加到BeanDefinition中，这样当容器创建实例后，就会使用此处从配置文件中解析到的属性
+		 */
 		bdToUse.getPropertyValues().addPropertyValue(pv);
 	}
 

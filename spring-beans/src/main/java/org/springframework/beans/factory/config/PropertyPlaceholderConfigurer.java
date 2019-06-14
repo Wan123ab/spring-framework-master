@@ -19,7 +19,10 @@ package org.springframework.beans.factory.config;
 import java.util.Properties;
 
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.core.Constants;
+import org.springframework.core.PriorityOrdered;
 import org.springframework.core.SpringProperties;
 import org.springframework.core.env.AbstractEnvironment;
 import org.springframework.lang.Nullable;
@@ -52,6 +55,20 @@ import org.springframework.util.StringValueResolver;
  * @deprecated as of 5.2; use {@code org.springframework.context.support.PropertySourcesPlaceholderConfigurer}
  * instead which is more flexible through taking advantage of the {@link org.springframework.core.env.Environment}
  * and {@link org.springframework.core.env.PropertySource} mechanisms.
+ */
+
+/**
+ * BeanFactoryPostProcessor有2个非常重要的子类：
+ * 1、PropertyPlaceholderConfigurer:允许我们通过配置 Properties 的方式来取代Bean中定义的占位符---可以处理任何bean的占位符
+ * 2、PropertyOverrideConfigurer:允许我们对 Spring 容器中配置的任何bean定义的property信息进行覆盖替换---可以处理指定bean的指定属性
+ *
+ * PropertyPlaceholderConfigurer允许我们用Properties文件来配置XML文件（或者其他方式，如注解方式）中的占位符
+ *
+ * PropertyOverrideConfigurer实现接口
+ * @see BeanFactoryPostProcessor
+ * @see PriorityOrdered
+ * @see BeanFactoryAware
+ * @see BeanNameAware
  */
 @Deprecated
 public class PropertyPlaceholderConfigurer extends PlaceholderConfigurerSupport {
@@ -206,27 +223,55 @@ public class PropertyPlaceholderConfigurer extends PlaceholderConfigurerSupport 
 	@Override
 	protected void processProperties(ConfigurableListableBeanFactory beanFactoryToProcess, Properties props)
 			throws BeansException {
-
+		/**
+		 * 利用合并转换过的Properties构建一个StringValueResolver内部类
+		 */
 		StringValueResolver valueResolver = new PlaceholderResolvingStringValueResolver(props);
+		/**
+		 * 属性处理
+		 * @see PlaceholderConfigurerSupport#doProcessProperties(org.springframework.beans.factory.config.ConfigurableListableBeanFactory, org.springframework.util.StringValueResolver)
+		 */
 		doProcessProperties(beanFactoryToProcess, valueResolver);
 	}
 
-
+	/**
+	 * StringValueResolver为一个解析String类型value的策略接口
+	 */
 	private class PlaceholderResolvingStringValueResolver implements StringValueResolver {
 
+		/**
+		 * 占位符工具类，用于替换占位符，返回真正的值
+		 */
 		private final PropertyPlaceholderHelper helper;
 
+		/**
+		 * PlaceholderResolver 是一个用于解析字符串中包含占位符的替换值的策略接口，
+		 * 该接口有一个 #resolvePlaceholder(String strVa) 方法，用于返回占位符的替换值
+		 */
 		private final PlaceholderResolver resolver;
 
 		public PlaceholderResolvingStringValueResolver(Properties props) {
 			this.helper = new PropertyPlaceholderHelper(
 					placeholderPrefix, placeholderSuffix, valueSeparator, ignoreUnresolvablePlaceholders);
+			/**
+			 * 使用传入的Properties构建一个PlaceholderResolver---占位符解析器
+			 */
 			this.resolver = new PropertyPlaceholderConfigurerResolver(props);
 		}
 
+		/**
+		 * 解析给定String中的占位符，并返回真实值
+		 * @param strVal the original String value (never {@code null})
+		 * @return
+		 * @throws BeansException
+		 */
 		@Override
 		@Nullable
 		public String resolveStringValue(String strVal) throws BeansException {
+			/**
+			 * 解析给定String中的占位符，并返回真实值
+			 * @see PropertyPlaceholderHelper#parseStringValue(java.lang.String, org.springframework.util.PropertyPlaceholderHelper.PlaceholderResolver, java.util.Set)
+			 */
 			String resolved = this.helper.replacePlaceholders(strVal, this.resolver);
 			if (trimValues) {
 				resolved = resolved.trim();

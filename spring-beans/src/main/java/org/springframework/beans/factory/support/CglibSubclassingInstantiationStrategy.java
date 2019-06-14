@@ -41,6 +41,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
+ * Spring 实例化 Bean 的默认实例化策略，其主要功能还是对SimpleInstantiationStrategy功能进行补充：其父类将 CGLIB 的实例化策略委托其实现
+ *
  * Default object instantiation strategy for use in BeanFactories.
  *
  * <p>Uses CGLIB to generate subclasses dynamically if methods need to be
@@ -82,6 +84,9 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			@Nullable Constructor<?> ctor, Object... args) {
 
 		// Must generate CGLIB subclass...
+		/**
+		 * 通过内部类CglibSubclassCreator来生成CGLIB子类
+		 */
 		return new CglibSubclassCreator(bd, owner).instantiate(ctor, args);
 	}
 
@@ -105,6 +110,8 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		}
 
 		/**
+		 * 创建一个动态生成子类的实例，该子类已实现所需的lookups（lookup-method、replace-method）
+		 *
 		 * Create a new instance of a dynamically generated subclass implementing the
 		 * required lookups.
 		 * @param ctor constructor to use. If this is {@code null}, use the
@@ -114,13 +121,22 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		 * @return new instance of the dynamically generated subclass
 		 */
 		public Object instantiate(@Nullable Constructor<?> ctor, Object... args) {
+			/**
+			 * 通过CGLIB创建一个代理类
+			 */
 			Class<?> subclass = createEnhancedSubclass(this.beanDefinition);
 			Object instance;
 			if (ctor == null) {
+				/**
+				 * 如果指定ctor为null，使用默认无参构造实例化
+				 */
 				instance = BeanUtils.instantiateClass(subclass);
 			}
 			else {
 				try {
+					/**
+					 * 根据ctor的参数类型获取代理类subclass对应的Constructor，并实例化ben
+					 */
 					Constructor<?> enhancedSubclassConstructor = subclass.getConstructor(ctor.getParameterTypes());
 					instance = enhancedSubclassConstructor.newInstance(args);
 				}
@@ -131,6 +147,9 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 			}
 			// SPR-10785: set callbacks directly on the instance instead of in the
 			// enhanced class (via the Enhancer) in order to avoid memory leaks.
+			/**
+			 *  为了避免 memory leaks 异常，直接在 bean 实例上设置回调对象
+			 */
 			Factory factory = (Factory) instance;
 			factory.setCallbacks(new Callback[] {NoOp.INSTANCE,
 					new LookupOverrideMethodInterceptor(this.beanDefinition, this.owner),
@@ -139,17 +158,31 @@ public class CglibSubclassingInstantiationStrategy extends SimpleInstantiationSt
 		}
 
 		/**
+		 * 使用CGLIB为给定的bean创建增强子类
+		 *
 		 * Create an enhanced subclass of the bean class for the provided bean
 		 * definition, using CGLIB.
 		 */
 		private Class<?> createEnhancedSubclass(RootBeanDefinition beanDefinition) {
+			/**
+			 * 创建Enhancer增强器
+			 */
 			Enhancer enhancer = new Enhancer();
+			/**
+			 * 设置父类
+			 */
 			enhancer.setSuperclass(beanDefinition.getBeanClass());
+			/**
+			 * 设置命名策略
+			 */
 			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
 			if (this.owner instanceof ConfigurableBeanFactory) {
 				ClassLoader cl = ((ConfigurableBeanFactory) this.owner).getBeanClassLoader();
 				enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(cl));
 			}
+			/**
+			 * 设置回调过滤器
+			 */
 			enhancer.setCallbackFilter(new MethodOverrideCallbackFilter(beanDefinition));
 			enhancer.setCallbackTypes(CALLBACK_TYPES);
 			return enhancer.createClass();
