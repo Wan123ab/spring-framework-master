@@ -249,7 +249,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 		// Eagerly check singleton cache for manually registered singletons.
 		/**
-		 * 检查早已实例化的单例bean，并且允许当前创建的bean被（其他bean）早期依赖：非常重要，用于解决循环依赖！
+		 * 一、检查早已实例化的单例bean，并且允许当前创建的bean被（其他bean）早期依赖：非常重要，用于解决循环依赖！
 		 * 对于单例bean，整个IOC容器只会初始化一次，不需要重复创建
 		 * @see DefaultSingletonBeanRegistry#getSingleton(java.lang.String)
 		 */
@@ -936,12 +936,21 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return result;
 	}
 
+	/**
+	 * 注册BeanPostProcessor，同一个BeanPostProcessor再次注册时将删除老的，将
+	 * 新的BeanPostProcessor添加到List末尾，涉及到执行顺序
+	 * @param beanPostProcessor the post-processor to register
+	 */
 	@Override
 	public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
 		Assert.notNull(beanPostProcessor, "BeanPostProcessor must not be null");
 		// Remove from old position, if any
 		this.beanPostProcessors.remove(beanPostProcessor);
 		// Track whether it is instantiation/destruction aware
+		/**
+		 * 如果注册的是InstantiationAwareBeanPostProcessor，那么设置hasInstantiationAwareBeanPostProcessors=true
+		 * 涉及到bean实例化后属性装配(@Autowired,@Resource)
+		 */
 		if (beanPostProcessor instanceof InstantiationAwareBeanPostProcessor) {
 			this.hasInstantiationAwareBeanPostProcessors = true;
 		}
@@ -1088,14 +1097,26 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return getMergedLocalBeanDefinition(beanName);
 	}
 
+	/**
+	 * 判断bean是否为FactoryBean
+	 * @param name the name of the bean to check
+	 * @return
+	 * @throws NoSuchBeanDefinitionException
+	 */
 	@Override
 	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
 		String beanName = transformedBeanName(name);
+		/**
+		 * 1、首先从一级缓存中获取---单例bean
+		 */
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null) {
 			return (beanInstance instanceof FactoryBean);
 		}
 		// No singleton instance found -> check bean definition.
+		/**
+		 * 2、去父factory中判断
+		 */
 		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
 			// No bean definition found in this factory -> delegate to parent.
 			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);

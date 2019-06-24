@@ -21,6 +21,8 @@ import org.springframework.context.annotation.AnnotationConfigBeanDefinitionPars
 import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
 
 /**
+ * 上下文命名空间处理器
+ *
  * {@link org.springframework.beans.factory.xml.NamespaceHandler}
  * for the '{@code context}' namespace.
  *
@@ -30,6 +32,10 @@ import org.springframework.context.annotation.ComponentScanBeanDefinitionParser;
  */
 public class ContextNamespaceHandler extends NamespaceHandlerSupport {
 
+	/**
+	 * 注册XML中标签对应的解析器，常用的前面4个，如
+	 * <context:component-scan base-package="com.wq" />
+	 */
 	@Override
 	public void init() {
 		registerBeanDefinitionParser("property-placeholder", new PropertyPlaceholderBeanDefinitionParser());

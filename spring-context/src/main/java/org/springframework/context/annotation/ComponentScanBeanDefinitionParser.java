@@ -80,14 +80,32 @@ public class ComponentScanBeanDefinitionParser implements BeanDefinitionParser {
 	@Override
 	@Nullable
 	public BeanDefinition parse(Element element, ParserContext parserContext) {
+		/**
+		 * 获取<context:component-scan base-package="com.wq" />中base-package属性值
+		 */
 		String basePackage = element.getAttribute(BASE_PACKAGE_ATTRIBUTE);
+		/**
+		 * 解析占位符
+		 */
 		basePackage = parserContext.getReaderContext().getEnvironment().resolvePlaceholders(basePackage);
+		/**
+		 * 以指定分隔符",; \t\n"解析成String[]
+		 */
 		String[] basePackages = StringUtils.tokenizeToStringArray(basePackage,
 				ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
 
 		// Actually scan for bean definitions and register them.
+		/**
+		 * 创建并初始化一个ClassPathBeanDefinitionScanner
+		 */
 		ClassPathBeanDefinitionScanner scanner = configureScanner(parserContext, element);
+		/**
+		 * 扫描basePackages，得到BeanDefinitionHolder集合
+		 */
 		Set<BeanDefinitionHolder> beanDefinitions = scanner.doScan(basePackages);
+		/**
+		 * 注册Component，即beanDefinitions
+		 */
 		registerComponents(parserContext.getReaderContext(), beanDefinitions, element);
 
 		return null;

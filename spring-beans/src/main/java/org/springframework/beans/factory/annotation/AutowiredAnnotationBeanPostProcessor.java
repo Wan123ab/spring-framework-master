@@ -69,6 +69,9 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 用于支持@Autowired和@Value，也支持@Inject作为@Autowired的替代可选方案
+ * 当在配置文件有<context:annotation-config>或<context:component-scan>会自动注册
+ *
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
  * that autowires annotated fields, setter methods and arbitrary config methods.
  * Such members to be injected are detected through a Java 5 annotation: by default,
@@ -148,9 +151,12 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	 */
 	@SuppressWarnings("unchecked")
 	public AutowiredAnnotationBeanPostProcessor() {
+		/** 支持@Autowired */
 		this.autowiredAnnotationTypes.add(Autowired.class);
+		/** 支持@Value */
 		this.autowiredAnnotationTypes.add(Value.class);
 		try {
+			/** 支持@Inject */
 			this.autowiredAnnotationTypes.add((Class<? extends Annotation>)
 					ClassUtils.forName("javax.inject.Inject", AutowiredAnnotationBeanPostProcessor.class.getClassLoader()));
 			logger.trace("JSR-330 'javax.inject.Inject' annotation found and supported for autowiring");
@@ -240,6 +246,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		this.injectionMetadataCache.remove(beanName);
 	}
 
+	/**
+	 * 决定候选构造器
+	 * @param beanClass
+	 * @param beanName
+	 * @return
+	 * @throws BeanCreationException
+	 */
 	@Override
 	@Nullable
 	public Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, final String beanName)
@@ -378,6 +391,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
 	}
 
+	/**
+	 * 进行依赖注入
+	 * @param pvs
+	 * @param bean
+	 * @param beanName
+	 * @return
+	 */
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
@@ -393,6 +413,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		return pvs;
 	}
 
+	/**
+	 * 进行依赖注入
+	 * @param pvs
+	 * @param bean
+	 * @param beanName
+	 * @return
+	 */
 	@Deprecated
 	@Override
 	public PropertyValues postProcessPropertyValues(

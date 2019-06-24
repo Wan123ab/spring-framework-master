@@ -60,6 +60,7 @@ import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.UnsatisfiedDependencyException;
+import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -427,16 +428,35 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		return result;
 	}
 
+	/**
+	 * 初始化后处理 2019-6-20 上午9:48
+	 * @param existingBean the existing bean instance
+	 * @param beanName the name of the bean, to be passed to it if necessary
+	 * (only passed to {@link BeanPostProcessor BeanPostProcessors};
+	 * can follow the {@link #ORIGINAL_INSTANCE_SUFFIX} convention in order to
+	 * enforce the given instance to be returned, i.e. no proxies etc)
+	 * @return
+	 * @throws BeansException
+	 */
 	@Override
 	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
 			throws BeansException {
 
 		Object result = existingBean;
 		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			/**
+			 * 依次使用注册的BeanPostProcessor进行后处理
+			 */
 			Object current = processor.postProcessAfterInitialization(result, beanName);
+			/**
+			 * 只要碰到一个返回null的BeanPostProcessor，结束循环，直接返回
+			 */
 			if (current == null) {
 				return result;
 			}
+			/**
+			 * 当前BeanPostProcessor处理完后重新赋值，方便下一个BeanPostProcessor继续处理
+			 */
 			result = current;
 		}
 		return result;
@@ -475,6 +495,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	//---------------------------------------------------------------------
 
 	/**
+	 * 创建bean，不管是否单例bean都会调用这个方法
+	 *
 	 * Central method of this class: creates a bean instance,
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
@@ -516,7 +538,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		//----------------------------------------------------ignore end----------------------------------------------------------
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
-			/**
+			/**TODO 第一个BeanPostProcessor扩展点  2019-6-20 上午9:49
 			 * InstantiationAwareBeanPostProcessor 将有机会在这一步返回指定bean的代理
 			 * 前提条件：
 			 * 对于相应的 bean 我们有自定义的 TargetSource 实现，进到 getCustomTargetSource(...) 方法就清楚了，
@@ -558,6 +580,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 * 开始创建指定bean，到了这里bean的预实例化已经执行过了
+	 * @see AbstractAutowireCapableBeanFactory#createBean(java.lang.String, org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Object[])
+	 * @see InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation
+	 *
 	 * Actually create the specified bean. Pre-creation processing has already happened
 	 * at this point, e.g. checking {@code postProcessBeforeInstantiation} callbacks.
 	 * <p>Differentiates between default bean instantiation, use of a
@@ -610,6 +636,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Allow post-processors to modify the merged bean definition.
 		/**
 		 * 调用MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition方法，用的很少
+		 * @see MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition(org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Class, java.lang.String)
 		 */
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
@@ -1182,6 +1209,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 * 进行实例化的预处理（自定义实例化bean，如创建相应的代理对象）和初始化后处理（如进行自定义实例化的bean的依赖装配）
+	 *
 	 * Apply before-instantiation post-processors, resolving whether there is a
 	 * before-instantiation shortcut for the specified bean.
 	 * @param beanName the name of the bean
@@ -1196,8 +1225,15 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
+					/**
+					 * 1、使用InstantiationAwareBeanPostProcessor进行实例化预处理
+					 */
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
+						/**
+						 * 2、如果上一步进行了处理并且不为null，那么此处进行初始化后处理
+						 * 可以使用自定义的初始化策略，如自定义属性装配
+						 */
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
@@ -1208,6 +1244,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 * 使用InstantiationAwareBeanPostProcessor进行实例化预处理
+	 * 1、如果容器中没有注册过InstantiationAwareBeanPostProcessor，返回null
+	 * 2、如果注册了InstantiationAwareBeanPostProcessor，但是没做处理，返回null
+	 * 3、如果注册了InstantiationAwareBeanPostProcessor，并且进行了处理，那么返回预处理过的bean
+	 * 4、如果注册了AbstractAutoProxyCreator(实现了InstantiationAwareBeanPostProcessor)，
+	 * 那么将可能返回代理
+	 *
 	 * Apply InstantiationAwareBeanPostProcessors to the specified bean definition
 	 * (by class and name), invoking their {@code postProcessBeforeInstantiation} methods.
 	 * <p>Any returned object will be used as the bean instead of actually instantiating
@@ -1223,12 +1266,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		for (BeanPostProcessor bp : getBeanPostProcessors()) {
 			if (bp instanceof InstantiationAwareBeanPostProcessor) {
 				InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+				/**
+				 * 使用注册的InstantiationAwareBeanPostProcessor进行实例化预处理
+				 */
 				Object result = ibp.postProcessBeforeInstantiation(beanClass, beanName);
+				/**
+				 * 注意：如果注册了多个InstantiationAwareBeanPostProcessor，
+				 * 那么只要有一个处理后不为null，其他的InstantiationAwareBeanPostProcessor将不再处理
+				 */
 				if (result != null) {
 					return result;
 				}
 			}
 		}
+		/**
+		 * 返回null，表示不进行自定义预处理，直接使用Spring默认实例化策略
+		 */
 		return null;
 	}
 
@@ -1517,6 +1570,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		/**
 		 * 到这个地方，bean实例化已完成完成（通过工厂方法或构造方法），但是还没开始属性设值，
 		 * InstantiationAwareBeanPostProcessor有机会在此处修改bean的属性
+		 * @see InstantiationAwareBeanPostProcessor#postProcessAfterInstantiation(java.lang.Object, java.lang.String)
 		 */
 		boolean continueWithPropertyPopulation = true;
 
@@ -1563,6 +1617,11 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			pvs = newPvs;
 		}
 
+		/**
+		 * 判断是否注册了InstantiationAwareBeanPostProcessor，如果注册了，
+		 * 如：AutowiredAnnotationBeanPostProcessor、CommonAnnotationBeanPostProcessor，
+		 * 那么将进行依赖注入
+		 */
 		boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
 		boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
 
@@ -1578,6 +1637,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					 * 使用InstantiationAwareBeanPostProcessor实现类对属性进行后处理，
 					 * 以AutowiredAnnotationBeanPostProcessor这个实现类为例，会对使用
 					 * @Autowired、@Value 注解的依赖进行设置，
+					 *
+					 * @see AutowiredAnnotationBeanPostProcessor#postProcessProperties(org.springframework.beans.PropertyValues, java.lang.Object, java.lang.String)
+					 * @see org.springframework.context.annotation.CommonAnnotationBeanPostProcessor#postProcessProperties(org.springframework.beans.PropertyValues, java.lang.Object, java.lang.String)
 					 */
 					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 					if (pvsToUse == null) {

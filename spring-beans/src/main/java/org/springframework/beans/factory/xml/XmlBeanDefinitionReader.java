@@ -294,6 +294,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
 
 	/**
+	 * 从指定的xml配置文件加载BeanDefinition
 	 * Load bean definitions from the specified XML file.
 	 * @param resource the resource descriptor for the XML file
 	 * @return the number of bean definitions found
@@ -494,7 +495,7 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		}
 	}
 
-	/**
+	/**从制定的dom加载BeanDefinition
 	 * Register the bean definitions contained in the given DOM document.
 	 * Called by {@code loadBeanDefinitions}.
 	 * <p>Creates a new instance of the parser class and invokes
@@ -508,9 +509,20 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	 * @see BeanDefinitionDocumentReader#registerBeanDefinitions
 	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) throws BeanDefinitionStoreException {
+		/**
+		 * 1、通过反射调用构造函数实例化一个BeanDefinitionDocumentReader阅读器
+		 */
 		BeanDefinitionDocumentReader documentReader = createBeanDefinitionDocumentReader();
+		/** 2、记录之前已经注册的BeanDefinition数量 */
 		int countBefore = getRegistry().getBeanDefinitionCount();
+		/**
+		 * 3、创建一个XMLReaderContext
+		 * 4、注册BeanDefinition
+		 */
 		documentReader.registerBeanDefinitions(doc, createReaderContext(resource));
+		/**
+		 * 5、返回新注册的BeanDefinition数量
+		 */
 		return getRegistry().getBeanDefinitionCount() - countBefore;
 	}
 

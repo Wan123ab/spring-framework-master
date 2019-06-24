@@ -198,7 +198,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					//从单例beanName---ObjectFactory的Map中检查是否存在
 					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 					if (singletonFactory != null) {
-						//调用ObjectFactory实现类的getObject()方法来获取实际单例bean
+						/**
+						 * 调用ObjectFactory实现类的getObject()方法来获取实际单例bean
+						 * @see AbstractAutowireCapableBeanFactory#doCreateBean(java.lang.String, org.springframework.beans.factory.support.RootBeanDefinition, java.lang.Object[])
+						 * @see DefaultSingletonBeanRegistry#addSingletonFactory(java.lang.String, org.springframework.beans.factory.ObjectFactory)
+						 */
 						singletonObject = singletonFactory.getObject();
 						//存入早期单例bean的缓存Map---存入2级缓存
 						this.earlySingletonObjects.put(beanName, singletonObject);

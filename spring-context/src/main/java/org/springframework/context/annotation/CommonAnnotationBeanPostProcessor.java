@@ -140,6 +140,13 @@ import org.springframework.util.StringValueResolver;
  * @see org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor
  * @see org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor
  */
+
+/**
+ * 通用注解BeanPostProcessor，主要用于支持JSR-250的注解({@code javax.annotation})
+ * 如：PostConstruct、PreDestroy、Resource。
+ * 如果在xml中配置了<context:annotation-config>或<context:component-scan>
+ * 那么将自动注册一个默认的CommonAnnotationBeanPostProcessor
+ */
 @SuppressWarnings("serial")
 public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBeanPostProcessor
 		implements InstantiationAwareBeanPostProcessor, BeanFactoryAware, Serializable {
@@ -210,8 +217,11 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	 * respectively.
 	 */
 	public CommonAnnotationBeanPostProcessor() {
+		/** 设置优先级为倒数第3 */
 		setOrder(Ordered.LOWEST_PRECEDENCE - 3);
+		/** 支持@PostConstruct */
 		setInitAnnotationType(PostConstruct.class);
+		/** 支持@PreDestroy */
 		setDestroyAnnotationType(PreDestroy.class);
 		ignoreResourceType("javax.xml.ws.WebServiceContext");
 	}
@@ -326,8 +336,18 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		return true;
 	}
 
+	/**
+	 * 对@Resource标注的属性进行后处理
+	 * @param pvs the property values that the factory is about to apply (never {@code null})
+	 * @param bean the bean instance created, but whose properties have not yet been set
+	 * @param beanName the name of the bean
+	 * @return
+	 */
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
+		/**
+		 * 获取指定bean上@Resource元数据
+		 */
 		InjectionMetadata metadata = findResourceMetadata(beanName, bean.getClass(), pvs);
 		try {
 			metadata.inject(bean, beanName, pvs);
@@ -349,9 +369,19 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	private InjectionMetadata findResourceMetadata(String beanName, final Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
+		/**
+		 * 以beanName或类名作为缓存键，以便与自定义调用程序向后兼容
+		 */
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
 		// Quick check on the concurrent map first, with minimal locking.
+		/**
+		 * 首先使用最小的锁定快速检查injectionMetadataCache
+		 */
 		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
+		/**
+		 * 判读当前InjectionMetadata是否需要刷新
+		 * metadata == null || metadata.targetClass != clazz
+		 */
 		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
 			synchronized (this.injectionMetadataCache) {
 				metadata = this.injectionMetadataCache.get(cacheKey);

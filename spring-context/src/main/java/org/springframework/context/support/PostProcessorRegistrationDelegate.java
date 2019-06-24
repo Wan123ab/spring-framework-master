@@ -212,6 +212,24 @@ final class PostProcessorRegistrationDelegate {
 
 	/**
 	 * 注册所有BeanPostProcessor，仅仅只是实例化了，还没有调用其后处理方法
+	 * 注册顺序：（后面执行顺序与注册顺序一致）
+	 * 1、注册实现了PriorityOrdered接口的BeanPostProcessor
+	 * 2、注册实现了Ordered接口的BeanPostProcessor
+	 * AbstractAutoProxyCreator               	实现了Ordered，order = Ordered.LOWEST_PRECEDENCE
+	 * MethodValidationPostProcessor          	实现了Ordered，LOWEST_PRECEDENCE
+	 * ScheduledAnnotationBeanPostProcessor   	实现了Ordered，LOWEST_PRECEDENCE
+	 * AsyncAnnotationBeanPostProcessor       	实现了Ordered，order = Ordered.LOWEST_PRECEDENCE
+	 * 3、注册无实现任何接口的BeanPostProcessor
+	 * BeanValidationPostProcessor            	无序
+	 * ApplicationContextAwareProcessor       	无序
+	 * ServletContextAwareProcessor           	无序
+	 * 4、注册实现了{@link MergedBeanDefinitionPostProcessor}接口的BeanPostProcessor，
+	 * 且按照实现了Ordered的顺序进行注册，没有实现Ordered的默认为Ordered.LOWEST_PRECEDENCE
+	 * PersistenceAnnotationBeanPostProcessor  	实现了PriorityOrdered，Ordered.LOWEST_PRECEDENCE - 4
+	 * AutowiredAnnotationBeanPostProcessor   	实现了PriorityOrdered，order = Ordered.LOWEST_PRECEDENCE - 2
+	 * RequiredAnnotationBeanPostProcessor    	实现了PriorityOrdered，order = Ordered.LOWEST_PRECEDENCE - 1
+	 * CommonAnnotationBeanPostProcessor    	实现了PriorityOrdered，Ordered.LOWEST_PRECEDENCE
+	 *
 	 * @param beanFactory
 	 * @param applicationContext
 	 */
