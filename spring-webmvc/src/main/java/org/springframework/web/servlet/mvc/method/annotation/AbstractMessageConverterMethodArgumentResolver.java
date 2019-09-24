@@ -246,6 +246,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 	}
 
 	/**
+	 * 对方法参数进行参数校验，包括@Valid、@Validate以及自定义以Valid开头的注解
 	 * Validate the binding target if applicable.
 	 * <p>The default implementation checks for {@code @javax.validation.Valid},
 	 * Spring's {@link org.springframework.validation.annotation.Validated},
@@ -260,6 +261,7 @@ public abstract class AbstractMessageConverterMethodArgumentResolver implements 
 		for (Annotation ann : annotations) {
 			Validated validatedAnn = AnnotationUtils.getAnnotation(ann, Validated.class);
 			if (validatedAnn != null || ann.annotationType().getSimpleName().startsWith("Valid")) {
+				/*获取注解的value值*/
 				Object hints = (validatedAnn != null ? validatedAnn.value() : AnnotationUtils.getValue(ann));
 				Object[] validationHints = (hints instanceof Object[] ? (Object[]) hints : new Object[] {hints});
 				binder.validate(validationHints);

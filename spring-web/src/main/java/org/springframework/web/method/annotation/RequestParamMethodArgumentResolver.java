@@ -49,6 +49,11 @@ import org.springframework.web.multipart.support.MultipartResolutionDelegate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
+ * 此参数解析器用于解析
+ * {@link RequestParam}标注的方法参数、
+ * {@link MultipartFile}类型的参数、
+ * {@code javax.servlet.http.Part}类型的参数。
+ *
  * Resolves method arguments annotated with @{@link RequestParam}, arguments of
  * type {@link MultipartFile} in conjunction with Spring's {@link MultipartResolver}
  * abstraction, and arguments of type {@code javax.servlet.http.Part} in conjunction
@@ -124,26 +129,34 @@ public class RequestParamMethodArgumentResolver extends AbstractNamedValueMethod
 	 */
 	@Override
 	public boolean supportsParameter(MethodParameter parameter) {
+		/*1、如果参数上有RequestParam注解*/
 		if (parameter.hasParameterAnnotation(RequestParam.class)) {
+			/*如果是Map类型*/
 			if (Map.class.isAssignableFrom(parameter.nestedIfOptional().getNestedParameterType())) {
 				RequestParam requestParam = parameter.getParameterAnnotation(RequestParam.class);
+				/*判断name是否为null或空*/
 				return (requestParam != null && StringUtils.hasText(requestParam.name()));
 			}
+			/*其他类型，默认支持*/
 			else {
 				return true;
 			}
 		}
 		else {
+			/*如果有RequestPart，返回false*/
 			if (parameter.hasParameterAnnotation(RequestPart.class)) {
 				return false;
 			}
 			parameter = parameter.nestedIfOptional();
+			/*支持Multipart参数*/
 			if (MultipartResolutionDelegate.isMultipartArgument(parameter)) {
 				return true;
 			}
+			/*如果设置useDefaultResolution=true，判断是否为普通类型*/
 			else if (this.useDefaultResolution) {
 				return BeanUtils.isSimpleProperty(parameter.getNestedParameterType());
 			}
+			/*其他不支持*/
 			else {
 				return false;
 			}

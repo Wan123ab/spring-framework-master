@@ -872,6 +872,7 @@ public class DataBinder implements PropertyEditorRegistry, TypeConverter {
 	}
 
 	/**
+	 * 参数校验
 	 * Invoke the specified Validators, if any, with the given validation hints.
 	 * <p>Note: Validation hints may get ignored by the actual target Validator.
 	 * @param validationHints one or more hint objects to be passed to a {@link SmartValidator}

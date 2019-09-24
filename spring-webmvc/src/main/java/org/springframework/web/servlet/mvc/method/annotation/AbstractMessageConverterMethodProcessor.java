@@ -168,6 +168,8 @@ public abstract class AbstractMessageConverterMethodProcessor extends AbstractMe
 	}
 
 	/**
+	 * 将指定的返回类型写入指定的输出信息
+	 *
 	 * Writes the given return type to the given output message.
 	 * @param value the value to write to the output message
 	 * @param returnType the type of the value
@@ -186,6 +188,7 @@ public abstract class AbstractMessageConverterMethodProcessor extends AbstractMe
 		Class<?> valueType;
 		Type targetType;
 
+		/*如果返回值为字符类型，那么输出类型也是String类型*/
 		if (value instanceof CharSequence) {
 			body = value.toString();
 			valueType = String.class;
@@ -193,6 +196,7 @@ public abstract class AbstractMessageConverterMethodProcessor extends AbstractMe
 		}
 		else {
 			body = value;
+			/*获取返回值类型*/
 			valueType = getReturnValueType(body, returnType);
 			targetType = GenericTypeResolver.resolveType(getGenericType(returnType), returnType.getContainingClass());
 		}
@@ -217,7 +221,9 @@ public abstract class AbstractMessageConverterMethodProcessor extends AbstractMe
 		}
 
 		MediaType selectedMediaType = null;
+		/*获取response响应头中的ContentType*/
 		MediaType contentType = outputMessage.getHeaders().getContentType();
+		/*如果ContentType不为null，并且不包含通配符"*"，就赋值给selectedMediaType*/
 		if (contentType != null && contentType.isConcrete()) {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Found 'Content-Type:" + contentType + "' in response");
@@ -225,8 +231,11 @@ public abstract class AbstractMessageConverterMethodProcessor extends AbstractMe
 			selectedMediaType = contentType;
 		}
 		else {
+			/*获取原生HttpServletRequest*/
 			HttpServletRequest request = inputMessage.getServletRequest();
+			/*从HttpServletRequest获取可接收的MediaType集合*/
 			List<MediaType> acceptableTypes = getAcceptableMediaTypes(request);
+			/*获取可生产的MediaType集合*/
 			List<MediaType> producibleTypes = getProducibleMediaTypes(request, valueType, targetType);
 
 			if (body != null && producibleTypes.isEmpty()) {
