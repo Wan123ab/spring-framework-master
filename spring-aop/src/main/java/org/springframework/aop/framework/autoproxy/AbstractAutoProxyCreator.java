@@ -350,6 +350,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	}
 
 	/**
+	 * bean初始化后创建代理
 	 * Create a proxy with the configured interceptors if the bean is
 	 * identified as one to proxy by the subclass.
 	 * @see #getAdvicesAndAdvisorsForBean
@@ -514,7 +515,11 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		return null;
 	}
 
-	/**为指定的bean创建一个Aop代理
+	/**
+	 * 为指定的bean创建一个Aop代理
+	 * 第3个参数specificInterceptors携带了所有advisors
+	 * 第4个参数targetSource携带了真实实现的信息
+	 *
 	 * Create an AOP proxy for the given bean.
 	 * @param beanClass the class of the bean
 	 * @param beanName the name of the bean

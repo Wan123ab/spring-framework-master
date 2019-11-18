@@ -430,6 +430,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * 初始化后处理 2019-6-20 上午9:48
+	 * 将在这一步进行Aop代理增强！！！
 	 * @param existingBean the existing bean instance
 	 * @param beanName the name of the bean, to be passed to it if necessary
 	 * (only passed to {@link BeanPostProcessor BeanPostProcessors};
@@ -445,7 +446,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		Object result = existingBean;
 		for (BeanPostProcessor processor : getBeanPostProcessors()) {
 			/**
-			 * 依次使用注册的BeanPostProcessor进行后处理
+			 * 依次使用注册的BeanPostProcessor进行后处理。
+			 * 将进行Aop代理增强，DefaultAdvisorAutoProxyCreator继承了AbstractAutoProxyCreator
+			 * @see org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator
+			 * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator
 			 */
 			Object current = processor.postProcessAfterInitialization(result, beanName);
 			/**
